@@ -1,8 +1,6 @@
 import streamlit as st
-import tempfile
 import os
 from PIL import Image
-import numpy as np
 from ultralytics import YOLO
 
 # Sayfa yapılandırması
@@ -12,11 +10,9 @@ st.set_page_config(
     layout="centered"
 )
 
-# Eğitilen modelin yolunu belirliyoruz. 
-# st.cache_resource kullanarak modelin her etkileşimde yeniden yüklenmesini önlüyoruz (hız kazandırır).
 @st.cache_resource
 def load_model():
-    model_path = "/home/bedirhan/Desktop/Hububat_Hastalik_Tespit/runs/detect/train-4/weights/best.pt"
+    model_path = "/home/bedirhan/Desktop/Vs_Code/Git/Hububat_Hastalik_Tespit/model/bugday_model.pt"
     if not os.path.exists(model_path):
         st.error(f"Model dosyası bulunamadı: {model_path}. Lütfen eğitimin tamamlandığından emin olun.")
         st.stop()
@@ -29,112 +25,84 @@ def get_recommendation(class_name):
     Sınıflandırma sonucuna göre kural tabanlı tavsiye (birliktelik/iş kuralları) motoru.
     """
     rules = {
-        "Yellow Rust": {
-            "teshis": "Sarı Pas Hastalığı",
-            "korunma": "Erken ekimden kaçınılmalı, sık ekim yapılmamalıdır.",
-            "mudahale": "Triazol grubu fungisitler ile yeşil aksam ilaçlaması yapılmalıdır."
+        "BlackPoint": {
+            "teshis": "Kara Nokta (Black Point)",
+            "korunma": "Hasat döneminde yağışlı ortamlardan kaçınılmalı, dayanıklı çeşitler seçilmeli.",
+            "mudahale": "Tohum ilaçlaması yapılmalı, ürün uygun nem koşullarında depolanmalıdır."
         },
-        "Brown Rust": {
-            "teshis": "Kahverengi Pas",
-            "korunma": "Dayanıklı çeşitler seçilmeli, ara konukçu bitkiler yok edilmelidir.",
-            "mudahale": "Sistemik mantar ilaçları uygulanmalı, potasyum takviyesi verilmelidir."
+        "FusariumFootRot": {
+            "teshis": "Kök ve Kökboğazı Çürüklüğü (Fusarium Foot Rot)",
+            "korunma": "Derin sürüm yapılmalı ve ekim nöbetine dikkat edilmeli.",
+            "mudahale": "Kimyasal mücadelesi zordur; koruyucu olarak tohum ilaçlaması şarttır."
         },
-        "Black Rust": {
-            "teshis": "Kara Pas",
-            "korunma": "Ara konukçu olan kadın tuzluğu bitkileri uzaklaştırılmalıdır.",
-            "mudahale": "Hastalık şiddeti artmadan uygun fungisitlerle ilaçlamaya başlanmalıdır."
+        "HealthyLeaf": {
+            "teshis": "Sağlıklı Yaprak",
+            "korunma": "Rutin bakım ve gübrelemeye devam ediniz.",
+            "mudahale": "Herhangi bir ilaçlamaya gerek yoktur."
         },
-        "Stem Rust": {
-            "teshis": "Kök Pası (Stem Rust)",
-            "korunma": "Ara konukçu kadın tuzluğu uzaklaştırılmalı, dayanıklı tohum kullanılmalıdır.",
-            "mudahale": "Hastalık başlangıcında uygun sistemik fungisitler uygulanmalıdır."
+        "LeafBlight": {
+            "teshis": "Yaprak Yanıklığı (Leaf Blight)",
+            "korunma": "Sık ekimden kaçınılmalı, aşırı sulama yapılmamalıdır.",
+            "mudahale": "Belirtiler ilk görüldüğünde uygun sistemik fungisitler uygulanmalıdır."
         },
-        "Powdery Mildew": {
-            "teshis": "Külleme Hastalığı",
-            "korunma": "Sık ekimden ve aşırı azotlu gübrelemeden kaçınılmalıdır.",
-            "mudahale": "Hastalık belirtileri görülür görülmez kükürtlü veya triazol grubu ilaçlar kullanılmalıdır."
-        },
-        "Septoria": {
-            "teshis": "Septoria Yaprak Lekesi",
-            "korunma": "Ekim nöbeti (rotasyon) uygulanmalı, hastalıklı bitki artıkları tarladan uzaklaştırılmalıdır.",
-            "mudahale": "Yağışlı dönemlerde koruyucu amaçlı fungisit uygulaması yapılmalıdır."
-        },
-        "Healthy Wheat": {
-            "teshis": "Bitki Sağlıklı",
-            "korunma": "Rutin bakımlara devam edilmelidir.",
-            "mudahale": "İlaçlamaya gerek yoktur."
+        "WheatBlast": {
+            "teshis": "Buğday Yanıklığı (Wheat Blast)",
+            "korunma": "Hastalıklı bölgelerden tohum alınmamalı, sertifikalı tohum kullanılmalıdır.",
+            "mudahale": "Hastalık çok hızlı yayılır, acil olarak geniş spektrumlu fungisitlerle müdahale edilmelidir."
         }
     }
-    # Eğer model sınıf isimlerini küçük harf veya farklı formatta döndürürse diye bir kontrol:
+    
     for key in rules.keys():
-        if key.lower().replace("-", " ") in class_name.lower().replace("-", " "):
+        if key.lower() in class_name.lower():
             return rules[key]
     
-    return rules.get(class_name, None)
+    return None
 
 def main():
     st.title("🌾 Hububat Hastalık Tespit ve Karar Destek Sistemi")
-    st.markdown("Bu sistem, tarımsal hububat yetiştiriciliğinde ekin yapraklarındaki hastalıkları tespit etmek ve uygun tedavi/korunma yöntemlerini sunmak için tasarlanmıştır. (Yerel YOLOv8 Modeli)")
+    st.markdown("Bu sistem, tarımsal hububat yetiştiriciliğinde hastalıkları tespit etmek ve uygun tedavi/korunma yöntemlerini sunmak için tasarlanmıştır. (YOLO Sınıflandırma Modeli)")
 
-    # Kullanıcıdan görüntü alma alanı
     uploaded_file = st.file_uploader(
         "Lütfen analiz için bir yaprak fotoğrafı yükleyin (.jpg, .png)", 
         type=['png', 'jpg', 'jpeg']
     )
 
     if uploaded_file is not None:
-        # Görüntüyü yükleme
         image = Image.open(uploaded_file).convert("RGB")
-        
-        # Orijinal resmi gösterme alanı
         image_placeholder = st.empty()
-        image_placeholder.image(image, caption='Yüklenen Görüntü', use_container_width=True)
+        image_placeholder.image(image, caption='Yüklenen Görüntü', use_column_width=True)
 
         if st.button("Analiz Yap"):
-            with st.spinner('Yerel model ile analiz ediliyor, lütfen bekleyin...'):
+            with st.spinner('Yerel sınıflandırma modeli ile analiz ediliyor, lütfen bekleyin...'):
                 try:
-                    # YOLO modelini kullanarak tahmin işlemi
+                    # YOLO modelini kullanarak sınıflandırma tahmini
                     results = model(image)
-                    result = results[0] # İlk resim (zaten 1 resim verdik)
+                    result = results[0] 
                     
-                    if len(result.boxes) == 0:
-                        st.warning("Görüntüde belirgin bir hastalık sınıfı tespit edilemedi.")
+                    if result.probs is None:
+                        st.warning("Görüntü analiz edilemedi. Sınıflandırma sonucu bulunamadı.")
                     else:
-                        # Ultralytics'in kendi çizim metodunu kullanıyoruz (plot). 
-                        # Numpy dizisi olarak BGR formatında döner, bunu RGB'ye çevirip PIL formatına alıyoruz.
+                        # Sonuçları görselleştirme
                         res_plotted = result.plot()
-                        annotated_image = Image.fromarray(res_plotted[..., ::-1])  # BGR to RGB
-                        
-                        # Orijinal resim yerine işaretlenmiş resmi koy
-                        image_placeholder.image(annotated_image, caption='Tespit Edilen Hastalık Bölgeleri (İşaretlenmiş)', use_container_width=True)
+                        annotated_image = Image.fromarray(res_plotted[..., ::-1])
+                        image_placeholder.image(annotated_image, caption='Analiz Sonucu (Sınıf ve Güven Skoru)', use_column_width=True)
 
-                        st.subheader("📊 Analiz Sonucu")
+                        st.subheader("📊 Karar Destek Sistemi Analiz Sonucu")
                         
-                        # Tespit edilen kutulardan en yüksek güven skoruna sahip olanı bulma
-                        boxes = result.boxes
-                        confidences = boxes.conf.cpu().numpy()
-                        class_ids = boxes.cls.cpu().numpy()
-                        
-                        # En yüksek skorun indeksini buluyoruz
-                        max_conf_idx = np.argmax(confidences)
-                        
-                        top_class_id = int(class_ids[max_conf_idx])
-                        top_confidence = confidences[max_conf_idx]
-                        
-                        # Sınıf ID'sini isme çevirme (model.names sözlüğünü kullanarak)
+                        # Classification objesinden en yüksek güven skorunu çekme
+                        top_class_id = result.probs.top1
+                        top_confidence = result.probs.top1conf.item()
                         class_name = result.names[top_class_id]
 
-                        # Karar Destek Motoru üzerinden tavsiye kurallarını çekme
                         rec = get_recommendation(class_name)
                         
                         if rec:
-                            # Teşhise özel Streamlit görsel bileşenlerinin kullanımı
-                            if "Healthy" in class_name or "Healthy Wheat" == class_name:
-                                st.success(f"Teşhis: {rec['teshis']} (En Yüksek Güven Skoru: %{top_confidence*100:.2f})")
+                            if "Healthy" in class_name:
+                                st.success(f"Teşhis: {rec['teshis']} (Güven Skoru: %{top_confidence*100:.2f})")
                                 st.info(f"🛡️ **Korunma:** {rec['korunma']}")
                                 st.info(f"🌿 **Müdahale:** {rec['mudahale']}")
                             else:
-                                st.error(f"Teşhis: {rec['teshis']} (En Yüksek Güven Skoru: %{top_confidence*100:.2f})")
+                                st.error(f"Teşhis: {rec['teshis']} (Güven Skoru: %{top_confidence*100:.2f})")
                                 st.warning(f"🛡️ **Korunma:** {rec['korunma']}")
                                 st.warning(f"💊 **Müdahale:** {rec['mudahale']}")
                         else:

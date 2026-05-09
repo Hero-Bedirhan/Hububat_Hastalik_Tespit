@@ -1,6 +1,0 @@
-train: /home/bedirhan/Desktop/Hububat_Hastalik_Tespit/Combined_Dataset/train/images
-val: /home/bedirhan/Desktop/Hububat_Hastalik_Tespit/Combined_Dataset/valid/images
-test: /home/bedirhan/Desktop/Hububat_Hastalik_Tespit/Combined_Dataset/test/images
-
-nc: 7
-names: ['Black Rust', 'Brown Rust', 'Healthy Wheat', 'Yellow Rust', 'Powdery Mildew', 'Septoria', 'Stem Rust']
