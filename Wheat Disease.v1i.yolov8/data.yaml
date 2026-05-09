@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 4
+names: ['Powdery_Mildew', 'Septoria', 'Stem_Rust', 'Yellow_Rust']
+
+roboflow:
+  workspace: wheatdisease
+  project: wheat-disease-efcmq
+  version: 1
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/wheatdisease/wheat-disease-efcmq/dataset/1
