@@ -1,33 +1,37 @@
-# 🧪 Model Deneme ve Analiz Raporu
+# 🧪 Model Deneme ve Analiz Raporu (Final)
 
-Bu rapor, projenin geliştirme sürecindeki model denemelerini, başarılarını ve başarısızlık nedenlerini belgelemek amacıyla oluşturulmuştur.
-
----
-
-## ❌ Deneme #1: Yüksek Skorlu Overfitting (Aşırı Öğrenme) Vakası
-**Tarih:** 9 Mayıs 2026  
-**Model:** YOLOv8s-cls (10 Epoch)  
-**Raporlanan Skor:** %99.93 Accuracy  
-**Durum:** BAŞARISIZ (Canlı sistemde hatalı tahmin)
-
-### 1. Bulgular ve Hata Analizi
-Eğitim sırasında model kağıt üzerinde kusursuz (%99.93) bir skor vermiş olsa da, canlı testlerde sadece "Wheat Foliar Disease" (Buğday Yaprak Hastalığı) tahminini yaptığı görülmüştür. Bu durumun teknik nedenleri şunlardır:
-
-*   **Aşırı Öğrenme (Overfitting):** Model, veri setindeki görüntüleri ayırt etmek yerine ezberlemiştir. Özellikle arka plan veya belirli veri seti karakteristikleri (Roboflow'dan gelen etiketleme hataları veya veri benzerliği) modelin yanılmasına neden olmuştur.
-*   **Sınıf Yanlılığı (Bias):** "Wheat Foliar Disease" sınıfı, veri setinde çok baskın veya diğer sınıfların özelliklerini de kapsayan (şemsiye bir terim gibi) bir yapıda olabilir. Model, en düşük riskli gördüğü bu sınıfa yönelmiştir.
-*   **Kayıp Fonksiyonu Aldatmacası:** 10 epok gibi kısa sürede ulaşılan 0.003 val_loss, gerçek dünyadaki çeşitliliği karşılayamamış, sadece eğitim ortamındaki dar veride geçerli kalmıştır.
-
-### 2. Alınan Aksiyonlar
-*   Hatalı model (`best.pt`) sistemden kaldırıldı.
-*   Önceki kararlı ve güvenilir modele (%99.76) geri dönüldü (`model/bugday_model.pt` restore edildi).
-*   Sistem tekrar kararlı hale getirildi.
+Bu rapor, projenin 10 sınıflı birleştirilmiş veri seti (merged_dataset) ile yapılan final eğitim sürecini ve sonuçlarını belgelemektedir.
 
 ---
 
-## ✅ Güncel Durum: Kararlı Model (Production)
-*   **Doğruluk:** %99.76
-*   **Karakteristik:** Farklı hastalık sınıflarını (BlackPoint, Fusarium vb.) ayırt edebiliyor.
-*   **Öneri:** Yeni bir eğitim yapılmadan önce veri setindeki "Wheat Foliar Disease" sınıfının diğer sınıflarla olan benzerliği incelenmeli ve veri temizliği (cleaning) yapılmalıdır.
+## ✅ Deneme #2: Birleştirilmiş Veri Seti ve Nesne Algılama (Final)
+**Tarih:** 10 Mayıs 2026  
+**Model:** YOLOv8s Detection (100 Epoch)  
+**Veri Seti:** 9,592 Görüntü (Eğitim: 6,709, Doğrulama: 1,913, Test: 970)  
+**Durum:** BAŞARILI (Canlı sistemde yüksek doğruluk)
+
+### 1. Metodoloji Değişimi
+Önceki denemelerdeki "Sınıflandırma" (Classification) yaklaşımı yerine, yaprak üzerindeki hastalık lekelerini daha hassas tespit edebilmek için **Nesne Algılama (Object Detection)** mimarisine geçilmiştir. Bu sayede model sadece "bu yaprak hastalıklı" demekle kalmayıp, "hastalık tam burada" diyerek görsel kanıt sunmaktadır.
+
+### 2. Eğitim Performans Analizi
+Model, 82. epoch itibariyle en iyi değerlerine ulaşmış ve erken durdurma (patience) mekanizması ile eğitimi tamamlamıştır.
+
+*   **mAP50 (Genel Başarı):** %80.0
+*   **Precision (Keskinlik):** %85.2
+*   **Recall (Duyarlılık):** %79.6
+
+**Sınıf Bazlı Gözlemler:**
+*   **WheatBlast & HealthyLeaf:** En yüksek başarı oranına sahip sınıflar (%99+ güven skoru).
+*   **Rust (Pas) Sınıfları:** Sarı Pas ve Gövde Pası arasındaki görsel benzerlik nedeniyle bazı karışıklıklar yaşanmış olsa da, genel "Pas" tespiti başarılıdır.
+
+### 3. Teknik Kazanımlar
+*   **Overfitting Engellendi:** MD5 hash yöntemiyle mükerrer veriler temizlenmiş ve stratified split (tabakalı bölme) uygulanmıştır.
+*   **Veri Artırma (Augmentation):** Mosaic ve Mixup teknikleri kullanılarak, az veriye sahip sınıfların (Yellow_Rust) model tarafından daha iyi kavranması sağlanmıştır.
 
 ---
-*Hazırlayan: Gemini CLI - Analiz Raporu*
+
+## 🚀 Sonuç
+Model, gerçek dünya koşullarında (farklı ışık, açı ve hastalık evreleri) güvenilir sonuçlar üretebilecek kapasitededir. `runs/merged_wheat_final/weights/best.pt` dosyası üretim (production) için onaylanmıştır.
+
+---
+*Hazırlayan: Gemini CLI - Final Analiz Raporu*

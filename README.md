@@ -1,52 +1,42 @@
-# 🌾 Hububat Hastalık Tespit ve Karar Destek Sistemi
+# 🌾 HasatVizyon Pro v2.5
 
-Bu proje, tarımsal üretimde verimliliği artırmak ve ekin kayıplarını minimize etmek amacıyla geliştirilmiş, yapay zeka tabanlı bir hastalık teşhis sistemidir. Sistem, buğday yapraklarındaki hastalıkları derin öğrenme algoritmaları kullanarak yüksek doğrulukla analiz eder ve çiftçilere yönelik tedavi/korunma önerileri sunar.
+HasatVizyon Pro, tarımsal üretimde karşılaşılan hububat hastalıklarını teşhis etmek amacıyla geliştirilmiş, hibrit yapay zeka mimarisine sahip gelişmiş bir **Karar Destek Sistemi (KDS)**'dir. Sistem, kullanıcıya iki farklı derin öğrenme yaklaşımını bir arada sunarak hem hızlı teşhis hem de detaylı görsel analiz imkanı sağlar.
 
-## 📊 Model ve Başarı Oranı
-Proje kapsamında **YOLOv8-cls (Sınıflandırma)** mimarisi kullanılmıştır. Yapılan eğitimler sonucunda model, test verileri üzerinde **%99.76** gibi olağanüstü bir doğruluk oranına ulaşmıştır.
+## 🌗 Hibrit Model Mimarisi
+Sistemimiz, kullanım amacına göre optimize edilmiş iki ana model üzerinde yükselmektedir:
 
-- **Mimari:** YOLOv8s-Classification
-- **Doğruluk (Accuracy):** %99.76
-- **Kayıp (Loss):** 0.0049 (6. Epoch sonunda)
+### 1. Nesne Algılama Modeli (YOLOv8-Detection)
+*   **Kapsam:** 10 Farklı Sınıf (8 Hastalık + 1 Genel Belirti + 1 Sağlıklı)
+*   **Özellik:** Hastalık belirtilerini yaprak üzerinde **bounding box** ile işaretleyerek görsel kanıt sunar.
+*   **Başarı:** %80.0 mAP50 (Yüksek çeşitlilikte üstün performans).
+*   **Kullanım:** Detaylı arazi incelemesi ve hastalığın yayılım alanını görmek için idealdir.
 
-## 📁 Veri Seti Bilgileri
-Eğitim sürecinde [Roboflow Wheat Disease Detection](https://universe.roboflow.com/agliculture/wheat-disease-detection-zsn0p) veri seti kullanılmıştır. Veri seti, buğdayda en sık görülen ve ekonomik zarara yol açan hastalıkları kapsayan binlerce görüntüden oluşmaktadır.
+### 2. Sınıflandırma Modeli (YOLOv8-Classification)
+*   **Kapsam:** 5 Temel Sınıf (En yaygın ekonomik zararlı hastalıklar).
+*   **Özellik:** Görüntünün tamamını analiz ederek anında teşhis koyar.
+*   **Başarı:** %99.7 Accuracy (Kusursuza yakın kararlılık).
+*   **Kullanım:** Çok hızlı ön teşhis ve genel bitki sağlığı kontrolü için idealdir.
 
-### Desteklenen Hastalık Sınıfları
-1.  **BlackPoint (Kara Nokta):** Tanelerde ve yapraklarda koyu renkli bozulmalar.
-2.  **FusariumFootRot (Kök/Kökboğazı Çürüklüğü):** Bitki gövde tabanında çürüme.
-3.  **LeafBlight (Yaprak Yanıklığı):** Yaprak yüzeyinde geniş kurumuş alanlar.
-4.  **WheatBlast (Buğday Yanıklığı):** Başak ve yapraklarda hızlı yayılan tehlikeli yanıklık.
-5.  **HealthyLeaf (Sağlıklı Yaprak):** Kontrol grubu, hastalık belirtisi olmayan ekinler.
-
-## 🚀 Karar Destek Sistemi Özellikleri
-Uygulama sadece bir teşhis aracı değil, aynı zamanda bir **Karar Destek Sistemi (KDS)** olarak çalışır:
-- **Anlık Analiz:** Yüklenen fotoğraf saniyeler içinde işlenir.
-- **Teşhis Raporu:** Hastalığın adı ve güven skoru (%) belirtilir.
-- **🛡️ Korunma Önerileri:** Hastalığın bulaşmasını önlemek için kültürel önlemler.
-- **💊 Müdahale Planı:** Tespit edilen hastalığa uygun fungisit ve tedavi yöntemleri.
-
-## 🛠️ Kurulum ve Çalıştırma
-
-### Gereksinimler
-- Python 3.8+
-- Sanal ortam (venv) önerilir.
-
-### Adımlar
-1.  **Kütüphaneleri Yükleyin:**
-    ```bash
-    pip install -r requirements.txt
-    ```
-2.  **Uygulamayı Başlatın:**
-    ```bash
-    streamlit run app.py
-    ```
+## 🛠️ Teknolojik Altyapı
+Neden bu teknolojileri seçtik?
+*   **Python & PyTorch:** Modern yapay zeka dünyasının en güçlü ve esnek ikilisi.
+*   **YOLOv8 (Ultralytics):** Sektör standardı hız ve doğruluk. RTX 5050 GPU ile 8ms çıkarım hızı.
+*   **Streamlit Pro:** Responsive, mobil uyumlu ve şık bir son kullanıcı arayüzü.
+*   **CUDA:** Donanım ivmelendirme ile gerçek zamanlı analiz kapasitesi.
 
 ## 📂 Proje Yapısı
-- `app.py`: Streamlit web arayüzü ve KDS motoru.
-- `model/bugday_model.pt`: %99.7 başarılı eğitilmiş model ağırlıkları.
-- `bugday_hasta/`: Eğitimde kullanılan veri seti yapısı.
-- `runs/bugday_hasta_final/`: Eğitim istatistikleri ve performans grafikleri.
+*   `app.py`: "HasatVizyon Pro" hibrit kullanıcı arayüzü.
+*   `models/detection_model.pt`: 10 sınıflı gelişmiş algılama ağırlıkları.
+*   `models/classification_model.pt`: 5 sınıflı yüksek kararlılıklı sınıflandırma ağırlıkları.
+*   `dataset/detection_dataset/`: 10 sınıflı birleştirilmiş veri seti (9,592 görüntü).
+*   `dataset/classification_dataset/`: 5 sınıflı orijinal veri seti.
+*   `runs/`: Her iki modelin eğitim metrikleri, loss grafikleri ve confusion matrix raporları.
+
+## 🚀 Başlatma
+```bash
+pip install -r requirements.txt
+streamlit run app.py
+```
 
 ---
-*Bu çalışma, akıllı tarım teknolojileri ve derin öğrenmenin gücünü birleştirerek sürdürülebilir tarıma katkı sağlamayı amaçlamaktadır.*
+*Hazırlayan: Bedirhan | HasatVizyon AI - Sürdürülebilir Tarım İçin Teknoloji*

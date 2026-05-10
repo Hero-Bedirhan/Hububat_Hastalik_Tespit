@@ -1,0 +1,7 @@
+path: /home/bedirhan/Desktop/Vs_Code/Git/Hububat_Hastalik_Tespit/dataset/detection_dataset
+train: images/train
+val: images/valid
+test: images/test
+
+nc: 10
+names: ['Powdery_Mildew', 'Septoria', 'Stem_Rust', 'Yellow_Rust', 'BlackPoint', 'FusariumFootRot', 'HealthyLeaf', 'LeafBlight', 'WheatBlast', 'wfd_dataset']

@@ -2,114 +2,218 @@ import streamlit as st
 import os
 from PIL import Image
 from ultralytics import YOLO
+import numpy as np
 
-# Sayfa yapılandırması
+# --- SAYFA YAPILANDIRMASI ---
 st.set_page_config(
-    page_title="Hububat Hastalık Tespit ve Karar Destek Sistemi",
+    page_title="HasatVizyon Pro v2.5",
     page_icon="🌾",
-    layout="centered"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-@st.cache_resource
-def load_model():
-    model_path = "/home/bedirhan/Desktop/Vs_Code/Git/Hububat_Hastalik_Tespit/model/bugday_model.pt"
-    if not os.path.exists(model_path):
-        st.error(f"Model dosyası bulunamadı: {model_path}. Lütfen eğitimin tamamlandığından emin olun.")
-        st.stop()
-    return YOLO(model_path)
+# --- ÖZEL CSS (Sağ Panel Beyaz, Sol Panel Koyu) ---
+st.markdown("""
+    <style>
+    /* 1. GENEL ARKA PLAN */
+    .stApp {
+        background-color: #ffffff !important;
+    }
 
-model = load_model()
+    /* 2. SOL PANEL (Sidebar - Koyu Kalacak) */
+    [data-testid="stSidebar"] {
+        background-color: #2b3035 !important;
+        border-right: 1px solid #1a1d20;
+    }
+    [data-testid="stSidebar"] * {
+        color: #f8f9fa !important;
+    }
+    [data-testid="stSidebar"] .stRadio label {
+        color: #f8f9fa !important;
+    }
 
-def get_recommendation(class_name):
-    """
-    Sınıflandırma sonucuna göre kural tabanlı tavsiye (birliktelik/iş kuralları) motoru.
-    """
-    rules = {
-        "BlackPoint": {
-            "teshis": "Kara Nokta (Black Point)",
-            "korunma": "Hasat döneminde yağışlı ortamlardan kaçınılmalı, dayanıklı çeşitler seçilmeli.",
-            "mudahale": "Tohum ilaçlaması yapılmalı, ürün uygun nem koşullarında depolanmalıdır."
-        },
-        "FusariumFootRot": {
-            "teshis": "Kök ve Kökboğazı Çürüklüğü (Fusarium Foot Rot)",
-            "korunma": "Derin sürüm yapılmalı ve ekim nöbetine dikkat edilmeli.",
-            "mudahale": "Kimyasal mücadelesi zordur; koruyucu olarak tohum ilaçlaması şarttır."
-        },
-        "HealthyLeaf": {
-            "teshis": "Sağlıklı Yaprak",
-            "korunma": "Rutin bakım ve gübrelemeye devam ediniz.",
-            "mudahale": "Herhangi bir ilaçlamaya gerek yoktur."
-        },
-        "LeafBlight": {
-            "teshis": "Yaprak Yanıklığı (Leaf Blight)",
-            "korunma": "Sık ekimden kaçınılmalı, aşırı sulama yapılmamalıdır.",
-            "mudahale": "Belirtiler ilk görüldüğünde uygun sistemik fungisitler uygulanmalıdır."
-        },
-        "WheatBlast": {
-            "teshis": "Buğday Yanıklığı (Wheat Blast)",
-            "korunma": "Hastalıklı bölgelerden tohum alınmamalı, sertifikalı tohum kullanılmalıdır.",
-            "mudahale": "Hastalık çok hızlı yayılır, acil olarak geniş spektrumlu fungisitlerle müdahale edilmelidir."
-        }
+    /* 3. SAĞ PANEL (Ana İçerik - Beyaz) */
+    [data-testid="stMain"] {
+        background-color: #ffffff !important;
+        color: #212529 !important;
+    }
+
+    /* 4. ANA EKRAN BAŞLIĞI */
+    .main-header {
+        color: #2e7d32 !important;
+        font-weight: 800 !important;
+        font-size: 2.2rem !important;
+    }
+
+    /* 5. ANALİZ SONUÇ KARTLARI (BEYAZ ARKA PLAN - KOYU YAZI) */
+    .res-card {
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 15px;
+        background-color: #f8f9fa !important;
+        border: 1px solid #dee2e6 !important;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+    .res-card h2, .res-card h3, .res-card h4 {
+        color: #1b5e20 !important;
+        margin: 0 !important;
+    }
+    .res-card p {
+        color: #495057 !important;
+        font-weight: 600 !important;
+        margin-top: 5px !important;
     }
     
-    for key in rules.keys():
-        if key.lower() in class_name.lower():
-            return rules[key]
+    /* Başarı/Tehlike Durumları için Renkli Kenarlık */
+    .res-success { border-left: 8px solid #2e7d32 !important; }
+    .res-danger { border-left: 8px solid #c62828 !important; }
+
+    /* 6. REÇETE VE DİĞER YAZILAR */
+    .stMarkdown, .stExpander, p, h3 {
+        color: #000000 !important;
+    }
     
-    return None
+    [data-testid="stMain"] h3 {
+        color: #000000 !important;
+        font-weight: 700 !important;
+    }
 
+    /* DOSYA YÜKLEME METİNLERİ (Siyah) */
+    [data-testid="stFileUploadDropzone"] div, 
+    [data-testid="stFileUploadDropzone"] span, 
+    [data-testid="stFileUploadDropzone"] small {
+        color: #000000 !important;
+    }
+    
+    /* 7. BUTON */
+    .stButton>button {
+        background: linear-gradient(to right, #2e7d32, #1b5e20) !important;
+        border-radius: 12px;
+        border: none;
+        padding: 12px;
+        width: 100%;
+        box-shadow: 0 4px 15px rgba(46, 125, 50, 0.2);
+    }
+    .stButton>button, .stButton>button p {
+        color: #ffffff !important;
+        font-weight: 700 !important;
+    }
+    
+    /* Kart Yapısı */
+    .stCard {
+        background: #ffffff;
+        padding: 25px;
+        border-radius: 15px;
+        border: 1px solid #dee2e6;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# --- MODEL YÜKLEME ---
+@st.cache_resource
+def load_model(selected_type):
+    if "Algılama" in selected_type:
+        path = "models/detection_model.pt"
+    else:
+        path = "models/classification_model.pt"
+    return YOLO(path) if os.path.exists(path) else None
+
+def get_recommendation(class_name):
+    rules = {
+        "Powdery_Mildew": {"teshis": "Külleme (Powdery Mildew)", "icon": "🌫️", "korunma": "Dayanıklı tohum seçimi.", "mudahale": "Sistemik fungisit."},
+        "Septoria": {"teshis": "Septoria Yaprak Lekesi", "icon": "🍂", "korunma": "Ekim nöbeti.", "mudahale": "İlaçlama."},
+        "Stem_Rust": {"teshis": "Gövde Pası (Stem Rust)", "icon": "🌾", "korunma": "Erken ekim.", "mudahale": "Pas ilaçları."},
+        "Yellow_Rust": {"teshis": "Sarı Pas (Yellow Rust)", "icon": "🟡", "korunma": "Hava sirkülasyonu.", "mudahale": "Acil müdahale."},
+        "BlackPoint": {"teshis": "Kara Nokta (Black Point)", "icon": "🌚", "korunma": "Uygun depolama.", "mudahale": "Tohum ilaçlaması."},
+        "FusariumFootRot": {"teshis": "Kök Çürüklüğü", "icon": "📉", "korunma": "Derin sürüm.", "mudahale": "Koruyucu ilaçlama."},
+        "HealthyLeaf": {"teshis": "Sağlıklı Yaprak", "icon": "✅", "korunma": "Rutin kontrol.", "mudahale": "Gerek yok."},
+        "LeafBlight": {"teshis": "Yaprak Yanıklığı", "icon": "🔥", "korunma": "Sık ekimden kaçınma.", "mudahale": "Sistemik fungisit."},
+        "WheatBlast": {"teshis": "Buğday Yanıklığı (Wheat Blast)", "icon": "🚨", "korunma": "Tohum karantinası.", "mudahale": "Acil ilaçlama."},
+        "wfd_dataset": {"teshis": "Genel Hastalık", "icon": "🔍", "korunma": "Tarla hijyeni.", "mudahale": "Mühendis kontrolü."}
+    }
+    return rules.get(class_name, None)
+
+# --- SIDEBAR ---
+with st.sidebar:
+    st.markdown("<h1 style='text-align: center; color: #4caf50 !important;'>🌾 HasatVizyon Pro</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #ced4da !important;'>Akıllı Tarım Karar Destek</p>", unsafe_allow_html=True)
+    st.markdown("---")
+    model_choice = st.radio("Teşhis Modu Seçin:", options=["🔍 Nesne Algılama (10 Sınıf)", "🎯 Sınıflandırma (5 Sınıf)"], index=0)
+    st.markdown("---")
+    st.write("📈 **Model Verimliliği**")
+    val = 0.80 if "Nesne" in model_choice else 0.99
+    st.progress(val)
+    st.caption(f"Aktif Başarı Oranı: %{val*100:.1f}")
+
+# --- ANA EKRAN ---
 def main():
-    st.title("🌾 Hububat Hastalık Tespit ve Karar Destek Sistemi")
-    st.markdown("Bu sistem, tarımsal hububat yetiştiriciliğinde hastalıkları tespit etmek ve uygun tedavi/korunma yöntemlerini sunmak için tasarlanmıştır. (YOLO Sınıflandırma Modeli)")
+    model = load_model(model_choice)
+    if not model:
+        st.error("Model yüklenemedi!")
+        return
 
-    uploaded_file = st.file_uploader(
-        "Lütfen analiz için bir yaprak fotoğrafı yükleyin (.jpg, .png)", 
-        type=['png', 'jpg', 'jpeg']
-    )
+    st.markdown("<h2 class='main-header'>🌱 Hububat Sağlık Teşhisi</h2>", unsafe_allow_html=True)
+    st.markdown("---")
 
-    if uploaded_file is not None:
-        image = Image.open(uploaded_file).convert("RGB")
-        image_placeholder = st.empty()
-        image_placeholder.image(image, caption='Yüklenen Görüntü', use_column_width=True)
+    col_main, col_report = st.columns([1.1, 0.9], gap="large")
 
-        if st.button("Analiz Yap"):
-            with st.spinner('Yerel sınıflandırma modeli ile analiz ediliyor, lütfen bekleyin...'):
-                try:
-                    # YOLO modelini kullanarak sınıflandırma tahmini
-                    results = model(image)
-                    result = results[0] 
-                    
-                    if result.probs is None:
-                        st.warning("Görüntü analiz edilemedi. Sınıflandırma sonucu bulunamadı.")
-                    else:
-                        # Sonuçları görselleştirme
-                        res_plotted = result.plot()
-                        annotated_image = Image.fromarray(res_plotted[..., ::-1])
-                        image_placeholder.image(annotated_image, caption='Analiz Sonucu (Sınıf ve Güven Skoru)', use_column_width=True)
+    with col_main:
+        st.markdown("<div class='stCard'>", unsafe_allow_html=True)
+        uploaded_file = st.file_uploader("Dosya seçin", type=['png', 'jpg', 'jpeg'], label_visibility="collapsed")
+        
+        analyze_btn = False
+        if uploaded_file:
+            analyze_btn = st.button("🚀 ANALİZİ GERÇEKLEŞTİR")
+            image = Image.open(uploaded_file).convert("RGB")
+            image_placeholder = st.empty()
+            image_placeholder.image(image, caption="Analiz Bekleniyor...", use_column_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
-                        st.subheader("📊 Karar Destek Sistemi Analiz Sonucu")
-                        
-                        # Classification objesinden en yüksek güven skorunu çekme
-                        top_class_id = result.probs.top1
-                        top_confidence = result.probs.top1conf.item()
-                        class_name = result.names[top_class_id]
-
-                        rec = get_recommendation(class_name)
-                        
+    with col_report:
+        if uploaded_file and analyze_btn:
+            with st.spinner('🔬 Analiz ediliyor...'):
+                results = model(image)
+                result = results[0]
+                
+                res_plotted = result.plot()
+                annotated_image = Image.fromarray(res_plotted[..., ::-1])
+                image_placeholder.image(annotated_image, caption="İşaretlenmiş Veri", use_column_width=True)
+                
+                st.markdown("### 📋 Analiz Bulguları")
+                
+                found = False
+                # Detection
+                if hasattr(result, 'boxes') and result.boxes is not None and len(result.boxes) > 0:
+                    found = True
+                    for box in result.boxes:
+                        name = result.names[int(box.cls)]
+                        conf = float(box.conf)
+                        rec = get_recommendation(name)
                         if rec:
-                            if "Healthy" in class_name:
-                                st.success(f"Teşhis: {rec['teshis']} (Güven Skoru: %{top_confidence*100:.2f})")
-                                st.info(f"🛡️ **Korunma:** {rec['korunma']}")
-                                st.info(f"🌿 **Müdahale:** {rec['mudahale']}")
-                            else:
-                                st.error(f"Teşhis: {rec['teshis']} (Güven Skoru: %{top_confidence*100:.2f})")
-                                st.warning(f"🛡️ **Korunma:** {rec['korunma']}")
-                                st.warning(f"💊 **Müdahale:** {rec['mudahale']}")
-                        else:
-                            st.warning(f"Bilinmeyen sınıf tespit edildi: {class_name} (Güven Skoru: %{top_confidence*100:.2f})")
+                            cl = "res-success" if "Healthy" in name else "res-danger"
+                            st.markdown(f"<div class='res-card {cl}'><h3>{rec['icon']} {rec['teshis']}</h3><p>Güven Seviyesi: %{conf*100:.1f}</p></div>", unsafe_allow_html=True)
+                            with st.expander("📝 Uygulama Reçetesi", expanded=True):
+                                st.write(f"🛡️ **Korunma:** {rec['korunma']}")
+                                st.write(f"💊 **Müdahale:** {rec['mudahale']}")
+                
+                # Classification
+                elif hasattr(result, 'probs') and result.probs is not None:
+                    found = True
+                    top_id = result.probs.top1
+                    top_conf = result.probs.top1conf.item()
+                    name = result.names[top_id]
+                    rec = get_recommendation(name)
+                    if rec:
+                        cl = "res-success" if "Healthy" in name else "res-danger"
+                        st.markdown(f"<div class='res-card {cl}' style='text-align:center;'><h2>{rec['icon']} {rec['teshis']}</h2><h4>Doğruluk Payı: %{top_conf*100:.2f}</h4></div>", unsafe_allow_html=True)
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        st.info(f"🛡️ **Korunma:** {rec['korunma']}")
+                        st.warning(f"💊 **Müdahale:** {rec['mudahale']}")
 
-                except Exception as e:
-                    st.error(f"Beklenmeyen Bir Hata Oluştu: {e}")
+                if not found:
+                    st.warning("⚠️ Belirti saptanamadı.")
 
 if __name__ == "__main__":
     main()

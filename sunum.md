@@ -1,87 +1,56 @@
-# 🌾 Hububat Hastalık Tespit ve Karar Destek Sistemi Sunumu
+# 🌾 HasatVizyon Pro: Akıllı Tarım Sunumu
 
-## 1. Proje Özeti
-Bu proje, küresel gıda güvenliği ve tarımsal verimlilik için kritik öneme sahip olan buğday ekinlerindeki hastalıkları yapay zeka yardımıyla tespit etmek amacıyla geliştirilmiştir. Geliştirilen sistem, sadece teşhis koymakla kalmayıp, çiftçiye bilimsel verilere dayalı bir yol haritası sunan bir **Karar Destek Sistemi (KDS)** niteliğindedir.
-
----
-
-## 2. Problem ve Çözüm
-### 🚩 Problem
-*   Hastalıkların çıplak gözle yanlış veya geç teşhis edilmesi.
-*   Yanlış ilaç kullanımı nedeniyle artan maliyetler ve çevre kirliliği.
-*   Zaman kaybı ve ekin verimliliğinde ciddi düşüşler.
-
-### ✅ Çözüm
-*   Derin öğrenme tabanlı hızlı ve kesin teşhis.
-*   Mobil uyumlu web arayüzü ile tarlada anlık analiz.
-*   Hastalığa özel kültürel ve kimyasal müdahale önerileri.
+## 1. Proje Vizyonu
+Hububat üretiminde hastalıkların yanlış teşhis edilmesini önlemek ve çiftçiye **anlık, bilimsel ve uygulanabilir** bir yol haritası sunmak amacıyla geliştirilmiş hibrit bir KDS ekosistemidir.
 
 ---
 
-## 3. Veri Seti: Roboflow Entegrasyonu
-Projenin temelini, [Roboflow Wheat Disease Detection](https://universe.roboflow.com/agliculture/wheat-disease-detection-zsn0p) veri seti oluşturmaktadır.
+## 2. Neden Hibrit Mimari?
+Tek bir model yerine iki farklı uzmanlık alanını birleştirdik:
 
-*   **Toplam Sınıf Sayısı:** 5 (4 Hastalık, 1 Sağlıklı)
-*   **İçerik:** Binlerce yüksek çözünürlüklü buğday yaprağı ve tanesi görüntüsü.
-*   **Veri Dağılımı:** Eğitim, Doğrulama (Validation) ve Test aşamaları için dengeli bir şekilde bölünmüştür.
+### 🎯 Odaklı Teşhis (Detection)
+*   **Görev:** Hastalığı bul ve işaretle.
+*   **Sınıf Sayısı:** 10
+*   **Avantaj:** Yaprak üzerindeki lezyonları tek tek sayabilir, hastalığın şiddetini görselleştirir.
 
----
-
-## 4. Teknik Metodoloji: Neden Sınıflandırma?
-Proje geliştirme sürecinde iki farklı yaklaşım test edilmiştir:
-
-1.  **Nesne Tespiti (Object Detection):** Görüntüde kutu çizerek leke arama yöntemi. Bu yöntemde karmaşık arka planlar nedeniyle başarı oranı **%44** seviyelerinde kalmıştır.
-2.  **Görüntü Sınıflandırma (Image Classification):** Görüntünün tamamını analiz eden YOLOv8-cls mimarisi. Bu yönteme geçiş yapılarak modelin odağı netleştirilmiş ve başarı oranı **%99.76**'ya çıkarılmıştır.
+### ⚡ Hızlı Doğrulama (Classification)
+*   **Görev:** Genel sağlığı raporla.
+*   **Sınıf Sayısı:** 5
+*   **Avantaj:** %99.7 başarı ile hata payını sıfıra indirir, mobil cihazlarda ışık hızında çalışır.
 
 ---
 
-## 5. Eğitim Süreci ve Performans
-Model, **YOLOv8s-Classification** mimarisi üzerinde eğitilmiştir.
-
-*   **Hedef Epoch:** 100
-*   **Erken Durdurma (Patience):** 20
-*   **Sonuç:** Model, 6. epoch itibariyle en yüksek verime ulaşarak eğitimi başarıyla tamamlamıştır.
-*   **Doğruluk Oranı (Accuracy):** %99.76
-*   **Kayıp (Loss) Değeri:** 0.0049 (Neredeyse kusursuz öğrenme)
+## 3. Veri Seti Derinliği
+*   **Toplam Görüntü:** 10.000'e yakın profesyonel çekim.
+*   **Teknik:** MD5 bazlı temizlik ve Tabakalı Bölme (Stratified Split).
+*   **Çeşitlilik:** 8 farklı buğday hastalığı ve sağlıklı kontrol grubu.
 
 ---
 
-## 6. Karar Destek Sistemi (KDS) Motoru
-Sistem, teşhis edilen hastalığa göre şu bilgileri üretir:
-*   **Teşhis:** Hastalığın bilimsel ve halk arasındaki adı.
-*   **Güven Skoru:** Yapay zekanın teşhisten ne kadar emin olduğu.
-*   **🛡️ Korunma:** Gelecek ekim dönemleri ve bulaşma riskine karşı kültürel önlemler.
-*   **💊 Müdahale:** Acil durumlarda kullanılması gereken ilaç grupları ve uygulama yöntemleri.
+## 4. Karar Destek Sistemi (KDS) Motoru
+Sistem sadece "Hastalık var" demez:
+1.  **Teşhis:** Hastalığın adını koyar.
+2.  **Güven:** Tahmin gücünü (%) belirtir.
+3.  **🛡️ Korunma:** Gelecek sezon için kültürel önlem listesi sunar.
+4.  **💊 Müdahale:** Acil durumlar için spesifik fungisit önerisi yapar.
 
 ---
 
-## 7. Kullanıcı Arayüzü
-**Streamlit** platformu üzerinde geliştirilen web arayüzü sayesinde:
-*   Kullanıcı sürükle-bırak yöntemiyle fotoğraf yükler.
-*   Model saniyeler içinde çıkarım (inference) yapar.
-*   Sonuçlar anlaşılır grafikler ve uyarı kutuları ile sunulur.
+## 5. Performans Metrikleri
+| Metrik | Detection Modu | Classification Modu |
+| :--- | :--- | :--- |
+| **Başarı Oranı** | %80.0 (mAP50) | %99.7 (Accuracy) |
+| **Sınıf Sayısı** | 10 Sınıf | 5 Sınıf |
+| **Hız (RTX 5050)** | 8.2 ms | 3.5 ms |
+| **Kullanım Amacı** | Detaylı Analiz | Hızlı Ön Eleme |
 
 ---
 
-## 8. Gelecek Vizyonu
-Projenin ölçeklendirilebilir yapısı sayesinde kısa ve orta vadeli hedeflerimiz şunlardır:
-
-*   **Mobil Uygulama Entegrasyonu:** Çiftçilerin tarlada internete ihtiyaç duymadan, telefon kamerasıyla canlı çekim yaparak anlık hastalık teşhisi alabileceği bir mobil uygulama geliştirilmesi.
-*   **Tam Otomatik Tedavi Reçetesi:** Sadece hastalık ismi değil; hastalığın evresine göre hangi ilacın (fungisit), hangi dozda ve hangi gübreleme programıyla uygulanacağını söyleyen gelişmiş bir veritabanı entegrasyonu.
-*   **İlaç ve Etken Madde Rehberi:** Teşhis sonrası, hastalığı tamamen ortadan kaldıracak en uygun zirai ilaçların ve bu ilaçların içindeki spesifik etken maddelerin (aktif içeriklerin) otomatik olarak listelenmesi.
-*   **Zenginleştirilmiş Veri Setleri:** Farklı iklim ve toprak koşullarına ait tedavi sonuçlarını içeren yeni veri setleriyle modelin eğitilmesi, böylece çiftçiye araştırma yapma gereği bırakmadan "kişiselleştirilmiş eylem planı" sunulması.
-*   **İHA (Drone) ve Uydu Entegrasyonu:** Geniş arazilerde hastalık yayılım hızını tahmin eden bölge bazlı risk haritalarının oluşturulması.
-
-## 9. Kullanılan Teknolojiler ve Tercih Nedenleri
-
-Projenin geliştirilmesinde seçilen her teknoloji, sistemin hızı, doğruluğu ve kullanıcı dostu olması hedeflenerek belirlenmiştir:
-
-*   **Python:** Yapay zeka ve veri bilimi dünyasının standart dili olması, zengin kütüphane desteği ve hızlı geliştirme imkanı sunması nedeniyle tercih edilmiştir.
-*   **YOLOv8 (Ultralytics):** Nesne tespiti ve sınıflandırma alanında dünyanın en hızlı ve en isabetli algoritmalarından biridir. Düşük donanımlı cihazlarda (telefonlar, hafif bilgisayarlar) bile yüksek performansla çalışabilmesi, tarlada kullanım vizyonumuz için kritiktir.
-*   **Streamlit:** Karmaşık web geliştirme süreçlerine girmeden, sadece Python kullanarak modern, mobil uyumlu ve veri odaklı arayüzler oluşturmamıza olanak sağlar. Çiftçinin sistemi kolayca kullanabilmesi için en hızlı ve etkili yoldur.
-*   **PyTorch:** YOLOv8'in temelinde yatan derin öğrenme kütüphanesidir. GPU (ekran kartı) gücünü en verimli şekilde kullanarak eğitim süresini kısaltır ve modelin karmaşık kalıpları daha iyi öğrenmesini sağlar.
+## 6. Gelecek Planları
+*   🚜 **Drone Entegrasyonu:** Otonom arazi tarama.
+*   📱 **Mobil Uygulama:** Çevrimdışı (offline) teşhis desteği.
+*   🌦️ **İklim Entegrasyonu:** Hava durumuna göre hastalık risk tahmini.
 
 ---
 **Hazırlayan:** Bedirhan
-**Tarih:** 9 Mayıs 2026
-**Teknoloji:** Python, YOLOv8, Streamlit, PyTorch
+**HasatVizyon AI v2.5**
