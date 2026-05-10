@@ -1,42 +1,62 @@
-# 🌾 HasatVizyon Pro v2.5
+# 🌾 HasatVizyon Pro
 
-HasatVizyon Pro, tarımsal üretimde karşılaşılan hububat hastalıklarını teşhis etmek amacıyla geliştirilmiş, hibrit yapay zeka mimarisine sahip gelişmiş bir **Karar Destek Sistemi (KDS)**'dir. Sistem, kullanıcıya iki farklı derin öğrenme yaklaşımını bir arada sunarak hem hızlı teşhis hem de detaylı görsel analiz imkanı sağlar.
+HasatVizyon Pro, hububat yaprak görüntülerinden hastalık analizi yapan ve sonucu tarımsal aksiyona dönüştüren bir Karar Destek Sistemi'dir. Sistem sadece teşhis koymakla kalmaz; hastalığın nerede görüldüğünü işaretler, güven skorunu sunar ve her sonuç için korunma ile müdahale önerisi üretir.
 
-## 🌗 Hibrit Model Mimarisi
-Sistemimiz, kullanım amacına göre optimize edilmiş iki ana model üzerinde yükselmektedir:
+## Sistem Ne Yapar?
+1. Kullanıcıdan yaprak görseli alır.
+2. Seçilen analiz moduna göre modeli çalıştırır.
+3. Hastalık veya sağlıklı durum bilgisini güven düzeyiyle raporlar.
+4. Uygun durumlarda yaprak üzerindeki belirtileri kutu (bounding box) ile gösterir.
+5. Sonucu agronomik öneri metnine dönüştürür.
 
-### 1. Nesne Algılama Modeli (YOLOv8-Detection)
-*   **Kapsam:** 10 Farklı Sınıf (8 Hastalık + 1 Genel Belirti + 1 Sağlıklı)
-*   **Özellik:** Hastalık belirtilerini yaprak üzerinde **bounding box** ile işaretleyerek görsel kanıt sunar.
-*   **Başarı:** %80.0 mAP50 (Yüksek çeşitlilikte üstün performans).
-*   **Kullanım:** Detaylı arazi incelemesi ve hastalığın yayılım alanını görmek için idealdir.
+## Analiz Modları
+### 1. Nesne Algılama (YOLOv8 Detection)
+- 10 sınıflı kapsamla belirtileri konumsal olarak tespit eder.
+- Çoklu belirtiyi aynı görselde ayrı ayrı yakalayabilir.
+- Sonucu hem sınıf hem güven skoru hem de görsel kanıtla verir.
 
-### 2. Sınıflandırma Modeli (YOLOv8-Classification)
-*   **Kapsam:** 5 Temel Sınıf (En yaygın ekonomik zararlı hastalıklar).
-*   **Özellik:** Görüntünün tamamını analiz ederek anında teşhis koyar.
-*   **Başarı:** %99.7 Accuracy (Kusursuza yakın kararlılık).
-*   **Kullanım:** Çok hızlı ön teşhis ve genel bitki sağlığı kontrolü için idealdir.
+### 2. Sınıflandırma (YOLOv8 Classification)
+- 5 sınıflı hızlı genel değerlendirme sunar.
+- Görüntünün tamamından baskın sınıfı çıkarır.
+- Ön tarama ve hızlı saha kontrol senaryolarında etkilidir.
 
-## 🛠️ Teknolojik Altyapı
-Neden bu teknolojileri seçtik?
-*   **Python & PyTorch:** Modern yapay zeka dünyasının en güçlü ve esnek ikilisi.
-*   **YOLOv8 (Ultralytics):** Sektör standardı hız ve doğruluk. RTX 5050 GPU ile 8ms çıkarım hızı.
-*   **Streamlit Pro:** Responsive, mobil uyumlu ve şık bir son kullanıcı arayüzü.
-*   **CUDA:** Donanım ivmelendirme ile gerçek zamanlı analiz kapasitesi.
+## Karar Destek Katmanı
+Her sınıf için sistem aşağıdaki çıktıları üretir:
+- Teşhis adı (yerel ifade + teknik karşılık)
+- Korunma önerisi (kültürel önlemler, hijyen, ekim yaklaşımı)
+- Müdahale önerisi (uygun ilaçlama veya izleme yönlendirmesi)
 
-## 📂 Proje Yapısı
-*   `app.py`: "HasatVizyon Pro" hibrit kullanıcı arayüzü.
-*   `models/detection_model.pt`: 10 sınıflı gelişmiş algılama ağırlıkları.
-*   `models/classification_model.pt`: 5 sınıflı yüksek kararlılıklı sınıflandırma ağırlıkları.
-*   `dataset/detection_dataset/`: 10 sınıflı birleştirilmiş veri seti (9,592 görüntü).
-*   `dataset/classification_dataset/`: 5 sınıflı orijinal veri seti.
-*   `runs/`: Her iki modelin eğitim metrikleri, loss grafikleri ve confusion matrix raporları.
+Bu yapı sayesinde sonuç ekranı yalnızca "hastalık adı" değil, uygulanabilir tarımsal eylem planı da içerir.
 
-## 🚀 Başlatma
+## Teknik Altyapı
+- Python
+- PyTorch
+- Ultralytics YOLOv8
+- Streamlit
+- CUDA (uygun donanımda hızlandırma)
+
+## Proje Yapısı
+- app.py: Streamlit tabanlı kullanıcı arayüzü ve analiz akışı
+- train_detection_model.py: Nesne algılama modeli eğitim süreci
+- train_classification_model.py: Sınıflandırma modeli eğitim süreci
+- models/detection_model.pt: Algılama modeli ağırlıkları
+- models/classification_model.pt: Sınıflandırma modeli ağırlıkları
+- dataset/detection_dataset: Algılama veri seti ve etiketleri
+- dataset/classification_dataset: Sınıflandırma veri seti
+- runs: Eğitim çıktıları, metrikler ve ağırlıklar
+
+## Çalıştırma
 ```bash
 pip install -r requirements.txt
 streamlit run app.py
 ```
 
+## Kullanım Akışı
+1. Uygulamayı açın.
+2. Sol panelden analiz modunu seçin.
+3. Görsel yükleyin.
+4. Analizi başlatın.
+5. Teşhis, güven skoru, işaretlenmiş görsel ve öneri kartlarını inceleyin.
+
 ---
-*Hazırlayan: Bedirhan | HasatVizyon AI - Sürdürülebilir Tarım İçin Teknoloji*
+Hazırlayan: Bedirhan

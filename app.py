@@ -1,8 +1,57 @@
 import streamlit as st
 import os
+
+# Trusted local checkpoint files are loaded with legacy behavior for PyTorch 2.6+.
+os.environ.setdefault("TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD", "1")
+
 from PIL import Image
 from ultralytics import YOLO
 import numpy as np
+import torch
+
+
+_ORIGINAL_TORCH_LOAD = torch.load
+
+
+def _torch_load_compat(*args, **kwargs):
+    """Keep backward-compatible checkpoint loading for trusted local models."""
+    kwargs.setdefault("weights_only", False)
+    return _ORIGINAL_TORCH_LOAD(*args, **kwargs)
+
+
+torch.load = _torch_load_compat
+
+
+def _configure_torch_safe_globals():
+    """Allow trusted Ultralytics model classes for PyTorch 2.6+ safe loading."""
+    add_safe_globals = getattr(torch.serialization, "add_safe_globals", None)
+    if add_safe_globals is None:
+        return
+
+    try:
+        from ultralytics.nn.tasks import (
+            ClassificationModel,
+            DetectionModel,
+            OBBModel,
+            PoseModel,
+            SegmentationModel,
+        )
+
+        add_safe_globals(
+            [
+                DetectionModel,
+                ClassificationModel,
+                SegmentationModel,
+                PoseModel,
+                OBBModel,
+            ]
+        )
+    except Exception:
+        # If internals change between versions, fall back to default behavior.
+        pass
+
+
+_configure_torch_safe_globals()
 
 # --- SAYFA YAPILANDIRMASI ---
 st.set_page_config(
@@ -118,7 +167,13 @@ def load_model(selected_type):
         path = "models/detection_model.pt"
     else:
         path = "models/classification_model.pt"
-    return YOLO(path) if os.path.exists(path) else None
+    if not os.path.exists(path):
+        return None, f"Model dosyası bulunamadı: {path}"
+
+    try:
+        return YOLO(path), None
+    except Exception as exc:
+        return None, f"Model yükleme hatası: {exc}"
 
 def get_recommendation(class_name):
     rules = {
@@ -149,9 +204,9 @@ with st.sidebar:
 
 # --- ANA EKRAN ---
 def main():
-    model = load_model(model_choice)
+    model, model_error = load_model(model_choice)
     if not model:
-        st.error("Model yüklenemedi!")
+        st.error(model_error or "Model yüklenemedi!")
         return
 
     st.markdown("<h2 class='main-header'>🌱 Hububat Sağlık Teşhisi</h2>", unsafe_allow_html=True)
