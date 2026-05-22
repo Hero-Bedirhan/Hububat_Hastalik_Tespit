@@ -152,16 +152,19 @@ html, body, [class*="css"] {
     background: linear-gradient(135deg, #2e7d32, #43a047) !important;
     color: #ffffff !important;
     font-weight: 700 !important;
-    font-size: 1rem !important;
+    font-size: 0.92rem !important;
     border: none !important;
     border-radius: 10px !important;
-    padding: 12px 20px !important;
+    padding: 10px 12px !important;
     width: 100% !important;
+    height: 60px !important;
+    white-space: pre-line !important;
+    line-height: 1.3 !important;
     box-shadow: 0 4px 14px rgba(46,125,50,0.4) !important;
     transition: opacity 0.2s !important;
 }
 .stButton > button:hover { opacity: 0.88 !important; }
-.stButton > button p { color: #fff !important; }
+.stButton > button p { color: #fff !important; white-space: pre-line !important; }
 
 /* ---- EXPANDER ---- */
 [data-testid="stExpander"] {
@@ -328,14 +331,28 @@ def main():
     # ── YÜKLEME KOLONU ────────────────────────────────────────
     with col_upload:
         st.markdown("### 📁 Görüntü Yükle")
-        uploaded_file = st.file_uploader(
-            "PNG, JPG veya JPEG seçin",
-            type=["png", "jpg", "jpeg"],
-        )
+
+        # Upload alanı + buton yan yana
+        up_col, btn_col = st.columns([2.6, 1], gap="small")
+
+        with up_col:
+            uploaded_file = st.file_uploader(
+                "PNG, JPG veya JPEG seçin",
+                type=["png", "jpg", "jpeg"],
+            )
+
+        with btn_col:
+            analyze_btn = False
+            if uploaded_file:
+                # Butonu dikey ortala
+                st.markdown(
+                    "<div style='padding-top:28px'></div>",
+                    unsafe_allow_html=True,
+                )
+                analyze_btn = st.button("🚀 ANALİZİ\nGERÇEKLEŞTİR")
 
         image = None
         image_placeholder = st.empty()
-        analyze_btn = False
 
         if uploaded_file:
             image = Image.open(uploaded_file).convert("RGB")
@@ -344,8 +361,6 @@ def main():
                 caption="📷 Yüklenen görüntü",
                 use_container_width=True,
             )
-            st.markdown("")
-            analyze_btn = st.button("🚀 ANALİZİ GERÇEKLEŞTİR")
         else:
             image_placeholder.markdown("""
 <div class="empty-box">
@@ -369,7 +384,7 @@ def main():
 """, unsafe_allow_html=True)
 
         elif uploaded_file and not analyze_btn:
-            st.info("👆 Analiz butonuna basarak teşhisi başlatın.")
+            pass  # Buton upload alanının yanında; ekstra mesaj gereksiz
 
         elif uploaded_file and analyze_btn and image is not None:
             with st.spinner("🔬 Yapay zeka analiz ediyor…"):
