@@ -321,7 +321,7 @@ def main():
 
     mode_tag = "Nesne Algılama" if "Nesne" in model_choice else "Sınıflandırma"
 
-    st.markdown(f"## 🌱 Hububat Sağlık Teşhisi")
+    st.markdown("## 🌱 Hububat Sağlık Teşhisi")
     st.caption(f"Yüklediğiniz bitki görüntüsü yapay zeka ile analiz edilir · **{mode_tag} Modu**")
     st.divider()
 
