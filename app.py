@@ -349,6 +349,26 @@ def main():
 
     with ctrl_R:
         st.markdown("### 📋 Analiz Sonuçları")
+        st.markdown("""
+<div style="
+    background: linear-gradient(135deg, #e8f5e9, #f1fdf3);
+    border: 1px solid #a5d6a7;
+    border-left: 4px solid #2e7d32;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-top: 4px;
+">
+    <p style="color:#1b5e20 !important; font-weight:700; font-size:0.82rem;
+              text-transform:uppercase; letter-spacing:0.5px; margin:0 0 6px 0;">
+        🤖 Nasıl Çalışır?
+    </p>
+    <p style="color:#2d4a2d !important; font-size:0.88rem; margin:0; line-height:1.6;">
+        Yüklediğiniz bitki fotoğrafı derin öğrenme modeliyle analiz edilir.
+        Hastalık tespit edilirse <strong>teşhis adı</strong>, <strong>güven oranı</strong>
+        ve <strong>uygulama reçetesi</strong> burada listelenir.
+    </p>
+</div>
+""", unsafe_allow_html=True)
 
     # ── SATIR 2: Görsel + Sonuç (aynı y pozisyonundan başlar) ───
     disp_L, disp_R = st.columns([1, 1], gap="large")
