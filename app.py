@@ -330,10 +330,11 @@ def main():
     st.caption(f"Yüklediğiniz bitki görüntüsü yapay zeka ile analiz edilir · **{mode_tag} Modu**")
     st.divider()
 
-    # ── SATIR 1: Kontrol Alanı (uploader sol, başlık sağ) ────────
-    ctrl_L, ctrl_R = st.columns([1, 1], gap="large")
+    # ── TEK KOLON ÇİFTİ: mobil sıralama korunur ─────────────────
+    col_L, col_R = st.columns([1, 1], gap="large")
 
-    with ctrl_L:
+    # SOL KOLON: uploader + görsel
+    with col_L:
         st.markdown("### 📁 Görüntü Yükle")
         up_col, btn_col = st.columns([2.6, 1], gap="small")
         with up_col:
@@ -347,36 +348,9 @@ def main():
                 st.markdown("<div style='padding-top:28px'></div>", unsafe_allow_html=True)
                 analyze_btn = st.button("🚀 ANALİZİ\nGERÇEKLEŞTİR")
 
-    with ctrl_R:
-        st.markdown("### 📋 Analiz Sonuçları")
-        st.markdown("""
-<div style="
-    background: linear-gradient(135deg, #e8f5e9, #f1fdf3);
-    border: 1px solid #a5d6a7;
-    border-left: 4px solid #2e7d32;
-    border-radius: 10px;
-    padding: 12px 16px;
-    margin-top: 4px;
-">
-    <p style="color:#1b5e20 !important; font-weight:700; font-size:0.82rem;
-              text-transform:uppercase; letter-spacing:0.5px; margin:0 0 6px 0;">
-        🤖 Nasıl Çalışır?
-    </p>
-    <p style="color:#2d4a2d !important; font-size:0.88rem; margin:0; line-height:1.6;">
-        Yüklediğiniz bitki fotoğrafı derin öğrenme modeliyle analiz edilir.
-        Hastalık tespit edilirse <strong>teşhis adı</strong>, <strong>güven oranı</strong>
-        ve <strong>uygulama reçetesi</strong> burada listelenir.
-    </p>
-</div>
-""", unsafe_allow_html=True)
+        image = None
+        image_placeholder = st.empty()
 
-    # ── SATIR 2: Görsel + Sonuç (aynı y pozisyonundan başlar) ───
-    disp_L, disp_R = st.columns([1, 1], gap="large")
-
-    image = None
-    image_placeholder = disp_L.empty()
-
-    with disp_L:
         if uploaded_file:
             image = Image.open(uploaded_file).convert("RGB")
             image_placeholder.image(
@@ -393,7 +367,31 @@ def main():
 </div>
 """, unsafe_allow_html=True)
 
-    with disp_R:
+    # SAĞ KOLON: başlık + bilgi kartı + sonuçlar
+    with col_R:
+        st.markdown("### 📋 Analiz Sonuçları")
+        st.markdown("""
+<div style="
+    background: linear-gradient(135deg, #e8f5e9, #f1fdf3);
+    border: 1px solid #a5d6a7;
+    border-left: 4px solid #2e7d32;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-top: 4px;
+    margin-bottom: 14px;
+">
+    <p style="color:#1b5e20 !important; font-weight:700; font-size:0.82rem;
+              text-transform:uppercase; letter-spacing:0.5px; margin:0 0 6px 0;">
+        🤖 Nasıl Çalışır?
+    </p>
+    <p style="color:#2d4a2d !important; font-size:0.88rem; margin:0; line-height:1.6;">
+        Yüklediğiniz bitki fotoğrafı derin öğrenme modeliyle analiz edilir.
+        Hastalık tespit edilirse <strong>teşhis adı</strong>, <strong>güven oranı</strong>
+        ve <strong>uygulama reçetesi</strong> burada listelenir.
+    </p>
+</div>
+""", unsafe_allow_html=True)
+
         if not uploaded_file:
             st.markdown("""
 <div class="empty-box">
