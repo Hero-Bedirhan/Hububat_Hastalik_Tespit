@@ -1,5 +1,8 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import os
+import base64
+import io
 
 os.environ.setdefault("TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD", "1")
 
@@ -272,6 +275,170 @@ def load_model(selected_type):
         return None, f"Model yükleme hatası: {exc}"
 
 
+def _img_to_b64(pil_img: Image.Image) -> str:
+    buf = io.BytesIO()
+    pil_img.save(buf, format="JPEG", quality=92)
+    return base64.b64encode(buf.getvalue()).decode()
+
+
+def show_zoomable_image(pil_img: Image.Image, caption: str = "", key: str = "img"):
+    """PIL görselini zoom + pan destekli özel viewer ile gösterir."""
+    b64 = _img_to_b64(pil_img)
+    uid = f"zv_{key}"
+    html = f"""
+<style>
+#{uid}_wrap {{
+    overflow: auto;
+    max-height: 480px;
+    border-radius: 10px;
+    background: #111;
+    cursor: grab;
+    position: relative;
+}}
+#{uid}_wrap:active {{ cursor: grabbing; }}
+#{uid}_img {{
+    display: block;
+    width: 100%;
+    transform-origin: top left;
+    transition: transform 0.12s ease;
+    user-select: none;
+    -webkit-user-drag: none;
+}}
+.{uid}_ctrl {{
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 20;
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}}
+.{uid}_btn {{
+    background: rgba(0,0,0,0.62);
+    color: #fff;
+    border: none;
+    border-radius: 7px;
+    width: 30px;
+    height: 30px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+}}
+.{uid}_btn:hover {{ background: rgba(46,125,50,0.75); }}
+.{uid}_lbl {{
+    background: rgba(0,0,0,0.5);
+    color: #fff;
+    font-size: 0.72rem;
+    padding: 3px 8px;
+    border-radius: 6px;
+    min-width: 40px;
+    text-align: center;
+    font-weight: 600;
+}}
+.{uid}_rst {{
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    border: none;
+    border-radius: 7px;
+    padding: 3px 9px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    font-weight: 600;
+}}
+.{uid}_rst:hover {{ background: rgba(255,255,255,0.25); }}
+.{uid}_caption {{
+    background: rgba(0,0,0,0.48);
+    color: #fff;
+    font-size: 0.78rem;
+    padding: 5px 14px;
+    text-align: center;
+    border-radius: 0 0 10px 10px;
+}}
+</style>
+<div style="position:relative;">
+  <div class="{uid}_ctrl">
+    <button class="{uid}_btn" onclick="zv_zoom('{uid}',-0.25)">−</button>
+    <span   class="{uid}_lbl" id="{uid}_lbl">100%</span>
+    <button class="{uid}_btn" onclick="zv_zoom('{uid}', 0.25)">+</button>
+    <button class="{uid}_rst" onclick="zv_reset('{uid}')">↺</button>
+  </div>
+  <div id="{uid}_wrap">
+    <img id="{uid}_img" src="data:image/jpeg;base64,{b64}" draggable="false">
+  </div>
+  <div class="{uid}_caption">{caption}</div>
+</div>
+<script>
+(function(){{
+  var S = {{}};
+  S['{uid}'] = 1.0;
+  var MIN = 0.4, MAX = 5.0;
+
+  window.zv_zoom = function(id, d){{
+    S[id] = Math.min(MAX, Math.max(MIN, S[id] + d));
+    _zv_apply(id);
+  }};
+  window.zv_reset = function(id){{
+    S[id] = 1.0;
+    _zv_apply(id);
+  }};
+  function _zv_apply(id){{
+    var el  = document.getElementById(id+'_img');
+    var lbl = document.getElementById(id+'_lbl');
+    if(!el) return;
+    el.style.transform = 'scale('+S[id]+')';
+    el.style.width = (100/S[id])+'%';
+    lbl.textContent = Math.round(S[id]*100)+'%';
+  }}
+
+  // Wheel zoom
+  var wrap = document.getElementById('{uid}_wrap');
+  wrap.addEventListener('wheel', function(e){{
+    e.preventDefault();
+    zv_zoom('{uid}', e.deltaY < 0 ? 0.15 : -0.15);
+  }}, {{passive:false}});
+
+  // Drag-to-pan
+  var drag=false, sx=0, sy=0, sl=0, st=0;
+  wrap.addEventListener('mousedown', function(e){{
+    drag=true; sx=e.clientX; sy=e.clientY;
+    sl=wrap.scrollLeft; st=wrap.scrollTop;
+  }});
+  window.addEventListener('mouseup',   function(){{ drag=false; }});
+  window.addEventListener('mousemove', function(e){{
+    if(!drag) return;
+    wrap.scrollLeft = sl-(e.clientX-sx);
+    wrap.scrollTop  = st-(e.clientY-sy);
+  }});
+
+  // Touch pinch-to-zoom
+  var t0=null, ts0=1.0;
+  wrap.addEventListener('touchstart', function(e){{
+    if(e.touches.length===2){{
+      var dx=e.touches[0].clientX-e.touches[1].clientX;
+      var dy=e.touches[0].clientY-e.touches[1].clientY;
+      t0=Math.hypot(dx,dy); ts0=S['{uid}'];
+    }}
+  }},{{passive:true}});
+  wrap.addEventListener('touchmove', function(e){{
+    if(e.touches.length===2 && t0){{
+      e.preventDefault();
+      var dx=e.touches[0].clientX-e.touches[1].clientX;
+      var dy=e.touches[0].clientY-e.touches[1].clientY;
+      var dist=Math.hypot(dx,dy);
+      S['{uid}']=Math.min(MAX,Math.max(MIN,ts0*(dist/t0)));
+      _zv_apply('{uid}');
+    }}
+  }},{{passive:false}});
+  wrap.addEventListener('touchend',function(){{t0=null;}},{{passive:true}});
+}})();
+</script>
+"""
+    components.html(html, height=530, scrolling=False)
+
+
 def get_recommendation(class_name):
     rules = {
         "Powdery_Mildew":  {"teshis": "Külleme",              "icon": "🌫️", "korunma": "Dayanıklı tohum seçin, aşırı azotlu gübreden kaçının.",   "mudahale": "Sistemik fungisit (kükürt bazlı) uygulayın."},
@@ -356,11 +523,8 @@ def main():
 
         if uploaded_file:
             image = Image.open(uploaded_file).convert("RGB")
-            image_placeholder.image(
-                image,
-                caption="📷 Yüklenen görüntü",
-                use_container_width=True,
-            )
+            with image_placeholder.container():
+                show_zoomable_image(image, caption="📷 Yüklenen görüntü", key="upload")
         else:
             image_placeholder.markdown("""
 <div class="empty-box">
@@ -394,11 +558,8 @@ def main():
                 # İşaretlenmiş görüntüyü sol kolona yansıt
                 res_plotted = result.plot()
                 annotated   = Image.fromarray(res_plotted[..., ::-1])
-                image_placeholder.image(
-                    annotated,
-                    caption="🔬 Tespit sonucu",
-                    use_container_width=True,
-                )
+                with image_placeholder.container():
+                    show_zoomable_image(annotated, caption="🔬 Tespit sonucu", key="result")
 
             found = False
 
