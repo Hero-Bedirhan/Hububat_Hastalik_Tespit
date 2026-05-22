@@ -232,8 +232,13 @@ html, body, [class*="css"] {
     background: #ffffff;
     border: 1.5px dashed #a5d6a7;
     border-radius: 14px;
-    padding: 48px 24px;
+    padding: 32px 24px;
     text-align: center;
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 .empty-box .etitle {
     color: #2e7d32 !important;
@@ -375,6 +380,8 @@ def main():
         st.markdown("### 📋 Analiz Sonuçları")
 
         if not uploaded_file:
+            # Upload alanı (uploader + inner columns) yüksekliği kadar boşluk bırak → hizala
+            st.markdown("<div style='height:82px'></div>", unsafe_allow_html=True)
             st.markdown("""
 <div class="empty-box">
     <div style="font-size:2.8rem">📊</div>
