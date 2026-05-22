@@ -97,18 +97,54 @@ html, body, [class*="css"] {
     color: #1b5e20 !important;
 }
 
-/* ---- DOSYA YÜKLEYİCİ ---- */
-[data-testid="stFileUploadDropzone"] {
+/* ---- DOSYA YÜKLEYİCİ: tüm durumlar için light override ---- */
+[data-testid="stFileUploadDropzone"],
+[data-testid="stFileUploadDropzone"] > div,
+[data-testid="stFileUploadDropzone"] section,
+[data-testid="stFileUploadDropzone"] > div > div {
     background: #e8f5e9 !important;
+    background-color: #e8f5e9 !important;
     border: 2px dashed #43a047 !important;
     border-radius: 12px !important;
+}
+/* Dropzone içindeki upload butonu */
+[data-testid="stFileUploadDropzone"] button {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    border: 1px solid #81c784 !important;
+    border-radius: 8px !important;
+}
+[data-testid="stFileUploadDropzone"] button span,
+[data-testid="stFileUploadDropzone"] button p {
+    color: #1b5e20 !important;
+    font-weight: 700 !important;
 }
 [data-testid="stFileUploadDropzone"] span,
 [data-testid="stFileUploadDropzone"] p,
 [data-testid="stFileUploadDropzone"] small,
-[data-testid="stFileUploadDropzone"] button span {
+[data-testid="stFileUploadDropzone"] div {
     color: #1b5e20 !important;
     font-weight: 600 !important;
+    background: transparent !important;
+}
+/* Sistem dark mode'u Streamlit'in kendi file uploader'ını etkilemesin */
+@media (prefers-color-scheme: dark) {
+    [data-testid="stFileUploadDropzone"],
+    [data-testid="stFileUploadDropzone"] > div,
+    [data-testid="stFileUploadDropzone"] section {
+        background: #e8f5e9 !important;
+        background-color: #e8f5e9 !important;
+    }
+    [data-testid="stFileUploadDropzone"] button {
+        background: #ffffff !important;
+        background-color: #ffffff !important;
+    }
+    [data-testid="stFileUploadDropzone"] span,
+    [data-testid="stFileUploadDropzone"] p,
+    [data-testid="stFileUploadDropzone"] small,
+    [data-testid="stFileUploadDropzone"] div {
+        color: #1b5e20 !important;
+    }
 }
 
 /* ---- ANALİZ BUTONU ---- */
