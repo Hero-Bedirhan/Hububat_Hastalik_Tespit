@@ -330,35 +330,33 @@ def main():
     st.caption(f"Yüklediğiniz bitki görüntüsü yapay zeka ile analiz edilir · **{mode_tag} Modu**")
     st.divider()
 
-    # ── Responsive kolon: mobilde stack, masaüstünde yan yana
-    col_upload, col_result = st.columns([1, 1], gap="large")
+    # ── SATIR 1: Kontrol Alanı (uploader sol, başlık sağ) ────────
+    ctrl_L, ctrl_R = st.columns([1, 1], gap="large")
 
-    # ── YÜKLEME KOLONU ────────────────────────────────────────
-    with col_upload:
+    with ctrl_L:
         st.markdown("### 📁 Görüntü Yükle")
-
-        # Upload alanı + buton yan yana
         up_col, btn_col = st.columns([2.6, 1], gap="small")
-
         with up_col:
             uploaded_file = st.file_uploader(
                 "PNG, JPG veya JPEG seçin",
                 type=["png", "jpg", "jpeg"],
             )
-
         with btn_col:
             analyze_btn = False
             if uploaded_file:
-                # Butonu dikey ortala
-                st.markdown(
-                    "<div style='padding-top:28px'></div>",
-                    unsafe_allow_html=True,
-                )
+                st.markdown("<div style='padding-top:28px'></div>", unsafe_allow_html=True)
                 analyze_btn = st.button("🚀 ANALİZİ\nGERÇEKLEŞTİR")
 
-        image = None
-        image_placeholder = st.empty()
+    with ctrl_R:
+        st.markdown("### 📋 Analiz Sonuçları")
 
+    # ── SATIR 2: Görsel + Sonuç (aynı y pozisyonundan başlar) ───
+    disp_L, disp_R = st.columns([1, 1], gap="large")
+
+    image = None
+    image_placeholder = disp_L.empty()
+
+    with disp_L:
         if uploaded_file:
             image = Image.open(uploaded_file).convert("RGB")
             image_placeholder.image(
@@ -375,13 +373,8 @@ def main():
 </div>
 """, unsafe_allow_html=True)
 
-    # ── SONUÇ KOLONU ─────────────────────────────────────────
-    with col_result:
-        st.markdown("### 📋 Analiz Sonuçları")
-
+    with disp_R:
         if not uploaded_file:
-            # Upload alanı (uploader + inner columns) yüksekliği kadar boşluk bırak → hizala
-            st.markdown("<div style='height:82px'></div>", unsafe_allow_html=True)
             st.markdown("""
 <div class="empty-box">
     <div style="font-size:2.8rem">📊</div>
@@ -391,14 +384,13 @@ def main():
 """, unsafe_allow_html=True)
 
         elif uploaded_file and not analyze_btn:
-            pass  # Buton upload alanının yanında; ekstra mesaj gereksiz
+            pass
 
         elif uploaded_file and analyze_btn and image is not None:
             with st.spinner("🔬 Yapay zeka analiz ediyor…"):
                 results = model(image)
                 result  = results[0]
 
-                # İşaretlenmiş görüntüyü sol kolona yansıt
                 res_plotted = result.plot()
                 annotated   = Image.fromarray(res_plotted[..., ::-1])
                 image_placeholder.image(
