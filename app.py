@@ -158,7 +158,8 @@ html, body, [class*="css"] {
     border-radius: 10px !important;
     padding: 10px 12px !important;
     width: 100% !important;
-    height: 60px !important;
+    min-height: 60px !important;
+    height: auto !important;
     white-space: pre-line !important;
     line-height: 1.3 !important;
     box-shadow: 0 4px 14px rgba(46,125,50,0.4) !important;
@@ -383,7 +384,7 @@ def main():
     # SOL KOLON: uploader + görsel
     with col_L:
         st.markdown("### 📁 Görüntü Yükle")
-        up_col, btn_col = st.columns([2.6, 1], gap="small")
+        up_col, btn_col = st.columns([2.6, 1], gap="small", vertical_alignment="bottom")
         with up_col:
             uploaded_file = st.file_uploader(
                 "PNG, JPG veya JPEG seçin",
@@ -392,8 +393,7 @@ def main():
         with btn_col:
             analyze_btn = False
             if uploaded_file:
-                st.markdown("<div style='padding-top:28px'></div>", unsafe_allow_html=True)
-                analyze_btn = st.button("🚀 ANALİZİ\nGERÇEKLEŞTİR")
+                analyze_btn = st.button("🚀 ANALİZİ\nGERÇEKLEŞTİR", use_container_width=True)
 
         image = None
         image_placeholder = st.empty()
@@ -453,7 +453,12 @@ def main():
 
         elif uploaded_file and analyze_btn and image is not None:
             with st.spinner("🔬 Yapay zeka analiz ediyor…"):
-                results = model(image)
+                if "Nesne" in model_choice:
+                    valid_classes = [k for k, v in model.names.items() if v != "wfd_dataset"]
+                    results = model(image, classes=valid_classes)
+                else:
+                    results = model(image)
+                    
                 result  = results[0]
 
                 res_plotted = result.plot()
