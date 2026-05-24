@@ -470,33 +470,78 @@ def main():
                     and result.boxes is not None
                     and len(result.boxes) > 0):
                 found = True
+
+                # Tespit edilen tüm benzersiz hastalıkları topla
+                detected = []
                 for box in result.boxes:
                     name = result.names[int(box.cls)]
                     conf = float(box.conf)
                     rec  = get_recommendation(name)
-                    if not rec:
-                        continue
-                    is_ok    = "Healthy" in name
-                    card_cls = "res-success" if is_ok else "res-danger"
+                    if rec:
+                        detected.append({"name": name, "conf": conf, "rec": rec})
 
+                # Her hastalık için ayrı kart
+                for d in detected:
+                    is_ok    = "Healthy" in d["name"]
+                    card_cls = "res-success" if is_ok else "res-danger"
                     st.markdown(f"""
 <div class="res-card {card_cls}">
-  <h3>{rec['icon']} {rec['teshis']}</h3>
-  <p class="conf">Güven: <strong>%{conf*100:.1f}</strong></p>
+  <h3>{d['rec']['icon']} {d['rec']['teshis']}</h3>
+  <p class="conf">Güven: <strong>%{d['conf']*100:.1f}</strong></p>
 </div>
 """, unsafe_allow_html=True)
-
-                    with st.expander("📝 Uygulama Reçetesi", expanded=True):
+                    with st.expander(f"📝 {d['rec']['teshis']} — Reçete", expanded=(len(detected) == 1)):
                         st.markdown(f"""
 <div class="recipe-box">
   <p class="rlabel">🛡️ Korunma</p>
-  <p class="rval">{rec['korunma']}</p>
+  <p class="rval">{d['rec']['korunma']}</p>
 </div>
 <div class="recipe-box">
   <p class="rlabel">💊 Müdahale</p>
+  <p class="rval">{d['rec']['mudahale']}</p>
+</div>
+""", unsafe_allow_html=True)
+
+                # ── BİRLİKTELİK ANALİZİ: Kombine Tedavi Planı ──────
+                # Birden fazla farklı hastalık varsa devreye girer
+                unique_diseases = [d for d in detected if "Healthy" not in d["name"]]
+                unique_names    = list({d["name"] for d in unique_diseases})
+
+                if len(unique_names) >= 2:
+                    st.markdown("---")
+                    st.markdown(f"""
+<div style="
+    background: linear-gradient(135deg, #fff3e0, #fbe9e7);
+    border: 1px solid #ffcc80;
+    border-left: 4px solid #e65100;
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-top: 4px;
+">
+    <p style="color:#bf360c !important; font-weight:700; font-size:0.85rem;
+              text-transform:uppercase; letter-spacing:0.5px; margin:0 0 8px 0;">
+        🔗 Birliktelik Analizi — Kombine Tedavi Planı
+    </p>
+    <p style="color:#4e342e !important; font-size:0.88rem; margin:0 0 10px 0; line-height:1.6;">
+        Bu görüntüde <strong>{len(unique_names)} farklı hastalık</strong> birlikte tespit edildi.
+        Birliktelik analizi ilkesiyle: birlikte görülen hastalıklar birlikte tedavi edilmelidir.
+    </p>
+    <p style="color:#bf360c !important; font-weight:600; font-size:0.88rem; margin:0;">
+        Tespit edilen: {" + ".join([get_recommendation(n)['teshis'] for n in unique_names if get_recommendation(n)])}
+    </p>
+</div>
+""", unsafe_allow_html=True)
+                    # Kombine müdahale listesi
+                    for n in unique_names:
+                        rec = get_recommendation(n)
+                        if rec:
+                            st.markdown(f"""
+<div class="recipe-box" style="margin-top:8px; border-left:3px solid #e65100;">
+  <p class="rlabel">{rec['icon']} {rec['teshis']} — Müdahale</p>
   <p class="rval">{rec['mudahale']}</p>
 </div>
 """, unsafe_allow_html=True)
+
 
             # Classification
             elif (hasattr(result, "probs")
