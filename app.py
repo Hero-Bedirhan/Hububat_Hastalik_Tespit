@@ -1,5 +1,7 @@
 import streamlit as st
 import os
+import numpy as np
+import joblib
 
 os.environ.setdefault("TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD", "1")
 
@@ -261,7 +263,7 @@ html, body, [class*="css"] {
 """, unsafe_allow_html=True)
 
 
-# ── MODEL ────────────────────────────────────────────────────
+# ── YOLO MODEL ────────────────────────────────────────────────
 @st.cache_resource
 def load_model(selected_type):
     path = (
@@ -275,6 +277,51 @@ def load_model(selected_type):
         return YOLO(path), None
     except Exception as exc:
         return None, f"Model yükleme hatası: {exc}"
+
+
+# ── KÜMELEME MODELİ ───────────────────────────────────────────
+@st.cache_resource
+def load_clustering_components():
+    """K-Means model verilerini ve ResNet18 özellik çıkarıcıyı yükler."""
+    cluster_path = "models/clustering_model.pkl"
+    if not os.path.exists(cluster_path):
+        return None, None, None, (
+            "Kümeleme modeli bulunamadı. "
+            "Önce terminalde `python train_clustering_model.py` çalıştırın."
+        )
+    try:
+        import torchvision.models as tv_models
+        import torchvision.transforms as tv_transforms
+
+        data = joblib.load(cluster_path)
+
+        base      = tv_models.resnet18(weights=tv_models.ResNet18_Weights.DEFAULT)
+        extractor = torch.nn.Sequential(*list(base.children())[:-1])
+        extractor.eval()
+
+        transform = tv_transforms.Compose([
+            tv_transforms.Resize((224, 224)),
+            tv_transforms.ToTensor(),
+            tv_transforms.Normalize(
+                mean=[0.485, 0.456, 0.406],
+                std =[0.229, 0.224, 0.225]
+            ),
+        ])
+        return data, extractor, transform, None
+    except Exception as exc:
+        return None, None, None, f"Kümeleme modeli yükleme hatası: {exc}"
+
+
+def extract_features_from_image(
+    image: Image.Image,
+    extractor: torch.nn.Module,
+    transform
+) -> np.ndarray:
+    """Tek bir PIL görüntüsünden 512-d özellik vektörü çıkarır."""
+    tensor = transform(image).unsqueeze(0)
+    with torch.no_grad():
+        feat = extractor(tensor).squeeze().cpu().numpy()
+    return feat
 
 
 def get_recommendation(class_name):
@@ -301,24 +348,194 @@ with st.sidebar:
 
     model_choice = st.radio(
         "**Teşhis Modu**",
-        options=["🔍 Nesne Algılama (10 Sınıf)", "🎯 Sınıflandırma (5 Sınıf)"],
+        options=[
+            "🔍 Nesne Algılama (10 Sınıf)",
+            "🎯 Sınıflandırma (5 Sınıf)",
+            "🔵 Kümeleme (Yeni Görüntü)",
+        ],
         index=0,
     )
 
     st.divider()
 
-    val = 0.80 if "Nesne" in model_choice else 0.99
+    if "Nesne" in model_choice:
+        val, mode_lbl, class_cnt = 0.80, "Nesne Algılama", "10 sınıf"
+    elif "Sınıf" in model_choice:
+        val, mode_lbl, class_cnt = 0.99, "Sınıflandırma", "5 sınıf"
+    else:
+        val, mode_lbl, class_cnt = 0.88, "Kümeleme", "K-Means · 5 küme"
+
     st.markdown(f"**Model Başarısı:** `%{int(val*100)}`")
     st.progress(val)
 
     st.divider()
-    mode_lbl  = "Nesne Algılama" if "Nesne" in model_choice else "Sınıflandırma"
-    class_cnt = "10 sınıf" if "Nesne" in model_choice else "5 sınıf"
     st.info(f"⚡ **Aktif Model**\n\n{mode_lbl} · {class_cnt}")
 
 
 # ── ANA EKRAN ────────────────────────────────────────────────
+def run_clustering_mode():
+    """Kümeleme modu: yeni/etiketlenmemiş görüntüyü K-Means ile analiz eder."""
+    cluster_data, extractor, transform, err = load_clustering_components()
+    if err:
+        st.error(f"⚠️ {err}")
+        return
+
+    st.markdown("## 🔵 Kümeleme ile Hastalık Analizi")
+    st.caption(
+        "Çiftçinin paylaştığı yeni / etiketlenmemiş görüntü, "
+        "K-Means kümeleme ile en yakın hastalık grubuna atanır."
+    )
+    st.divider()
+
+    col_L, col_R = st.columns([1, 1], gap="large")
+
+    with col_L:
+        st.markdown("### 📁 Görüntü Yükle")
+        up_col, btn_col = st.columns([2.6, 1], gap="small")
+        with up_col:
+            uploaded_file = st.file_uploader(
+                "PNG, JPG veya JPEG seçin",
+                type=["png", "jpg", "jpeg"],
+                key="cluster_uploader",
+            )
+        with btn_col:
+            analyze_btn = False
+            if uploaded_file:
+                st.markdown("<div style='padding-top:28px'></div>", unsafe_allow_html=True)
+                analyze_btn = st.button("🔵 KÜME\nANALİZİ", key="cluster_btn")
+
+        img_placeholder = st.empty()
+        image = None
+        if uploaded_file:
+            image = Image.open(uploaded_file).convert("RGB")
+            img_placeholder.image(image, caption="📷 Yüklenen görüntü", use_container_width=True)
+        else:
+            img_placeholder.markdown("""
+<div class="empty-box">
+    <div style="font-size:2.8rem">🌿</div>
+    <p class="etitle">Görüntü bekleniyor</p>
+    <p class="esub">Analiz için bir fotoğraf yükleyin</p>
+</div>
+""", unsafe_allow_html=True)
+
+    with col_R:
+        st.markdown("### 📋 Kümeleme Sonuçları")
+        st.markdown("""
+<div style="
+    background: linear-gradient(135deg, #e3f2fd, #ede7f6);
+    border: 1px solid #90caf9;
+    border-left: 4px solid #1565c0;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-top: 4px;
+    margin-bottom: 14px;
+">
+    <p style="color:#0d47a1 !important; font-weight:700; font-size:0.82rem;
+              text-transform:uppercase; letter-spacing:0.5px; margin:0 0 6px 0;">
+        🔵 Kümeleme Nasıl Çalışır?
+    </p>
+    <p style="color:#1a237e !important; font-size:0.88rem; margin:0; line-height:1.6;">
+        Görüntü <strong>ResNet18</strong> ile 512 boyutlu özellik vektörüne dönüştürülür.
+        <strong>K-Means</strong> bu vektörü eğitim kümelerine atar.
+        Hiçbir kümeyle yeterince örtüşmüyorsa <em>yeni hastalık varyantı</em> uyarısı verilir.
+    </p>
+</div>
+""", unsafe_allow_html=True)
+
+        if not uploaded_file:
+            st.markdown("""
+<div class="empty-box">
+    <div style="font-size:2.8rem">🔵</div>
+    <p class="etitle">Sonuçlar burada görünecek</p>
+    <p class="esub">Sol taraftan görüntü yükleyip küme analizini başlatın</p>
+</div>
+""", unsafe_allow_html=True)
+
+        elif uploaded_file and analyze_btn and image is not None:
+            with st.spinner("🔬 K-Means ile küme atanıyor…"):
+                feat         = extract_features_from_image(image, extractor, transform)
+                feat_scaled  = cluster_data["scaler"].transform(feat.reshape(1, -1))
+                kmeans       = cluster_data["kmeans"]
+                centers      = kmeans.cluster_centers_
+                threshold    = cluster_data["unknown_threshold"]
+
+                # Tüm kümelere olan mesafeler
+                dists = np.linalg.norm(centers - feat_scaled, axis=1)  # (k,)
+                sorted_idx   = np.argsort(dists)
+                nearest_idx  = int(sorted_idx[0])
+                nearest_dist = float(dists[nearest_idx])
+                nearest_name = cluster_data["cluster_to_class"].get(nearest_idx, "Bilinmeyen")
+
+                # Mesafeyi benzerlik % skoruna çevir (exponential decay)
+                similarity_pct = float(np.exp(-nearest_dist / threshold) * 100)
+                is_unknown     = nearest_dist > threshold
+
+            # ── SONUÇ KARTI ──────────────────────────────────────
+            if is_unknown:
+                st.markdown(f"""
+<div class="res-card res-danger">
+  <h3>⚠️ Yeni / Bilinmeyen Hastalık Varyantı</h3>
+  <p class="conf">Bu görüntü hiçbir bilinen kümeyle yeterince örtüşmüyor.</p>
+  <p class="conf" style="margin-top:6px">En yakın küme: <strong>{nearest_name}</strong>
+     &nbsp;·&nbsp; Benzerlik: <strong>%{similarity_pct:.1f}</strong></p>
+</div>
+""", unsafe_allow_html=True)
+                st.warning(
+                    "🔬 Bu görüntü yeni bir hastalık varyantı veya nadir bir semptom içeriyor "
+                    "olabilir. Ziraat mühendisine başvurmanız önerilir."
+                )
+            else:
+                rec      = get_recommendation(nearest_name)
+                icon     = rec["icon"]   if rec else "🔵"
+                teshis   = rec["teshis"] if rec else nearest_name
+                is_ok    = "Healthy" in nearest_name
+                card_cls = "res-success" if is_ok else "res-danger"
+
+                st.markdown(f"""
+<div class="res-card {card_cls}" style="text-align:center">
+  <div style="font-size:2.4rem;margin-bottom:8px">{icon}</div>
+  <h3>Küme: {teshis}</h3>
+  <p class="conf">Benzerlik Skoru: <strong>%{similarity_pct:.1f}</strong></p>
+</div>
+""", unsafe_allow_html=True)
+
+                if rec:
+                    st.markdown(f"""
+<div class="recipe-box" style="margin-top:14px">
+  <p class="rlabel">🛡️ Korunma</p>
+  <p class="rval">{rec['korunma']}</p>
+</div>
+<div class="recipe-box">
+  <p class="rlabel">💊 Müdahale</p>
+  <p class="rval">{rec['mudahale']}</p>
+</div>
+""", unsafe_allow_html=True)
+
+            # ── TOP-3 KÜME TABLOSU ────────────────────────────────
+            st.markdown("---")
+            st.markdown("**📊 En Yakın 3 Küme**")
+            for rank, idx in enumerate(sorted_idx[:3]):
+                name = cluster_data["cluster_to_class"].get(int(idx), "Bilinmeyen")
+                d    = float(dists[idx])
+                sim  = float(np.exp(-d / threshold) * 100)
+                bar_color = "#43a047" if rank == 0 else ("#fb8c00" if rank == 1 else "#e53935")
+                st.markdown(f"""
+<div style="display:flex;align-items:center;margin-bottom:8px;gap:10px">
+  <span style="width:20px;font-weight:700;color:#555">#{rank+1}</span>
+  <span style="flex:1;font-weight:600;color:#1b5e20">{name}</span>
+  <div style="width:120px;background:#e0e0e0;border-radius:8px;height:10px">
+    <div style="width:{min(sim,100):.0f}%;background:{bar_color};border-radius:8px;height:10px"></div>
+  </div>
+  <span style="width:50px;text-align:right;font-size:0.85rem;color:#555">%{sim:.0f}</span>
+</div>
+""", unsafe_allow_html=True)
+
+
 def main():
+    if "Kümeleme" in model_choice:
+        run_clustering_mode()
+        return
+
     model, model_error = load_model(model_choice)
     if not model:
         st.error(f"⚠️ {model_error or 'Model yüklenemedi!'}")
