@@ -6,6 +6,7 @@ os.environ.setdefault("TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD", "1")
 from PIL import Image
 from ultralytics import YOLO
 import torch
+import numpy as np
 
 _ORIGINAL_TORCH_LOAD = torch.load
 
