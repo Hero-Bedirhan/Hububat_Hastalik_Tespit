@@ -47,10 +47,10 @@ MODEL_SAVE_PATH = "models/clustering_model.pkl"
 N_CLUSTERS      = 5
 RANDOM_SEED     = 42
 
-# YOLO modelleri dahili olarak [0,1] aralığı kullanır (ImageNet mean/std YOK)
 TRANSFORM = T.Compose([
     T.Resize((224, 224)),
-    T.ToTensor(),   # → [0,1] float tensor
+    T.ToTensor(),
+    T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
 
 
@@ -161,24 +161,11 @@ def main():
     for c, name in cluster_to_class.items():
         print(f"    Küme {c} → {name:20s} | {cluster_class_dist.get(c, {})}")
 
-    # Küme içi mesafe istatistikleri (küme bazında eşik)
-    all_dists = np.linalg.norm(
-        features_scaled - kmeans.cluster_centers_[cluster_ids], axis=1
-    )  # her görüntünün kendi kümesine mesafesi
-
-    cluster_stats = {}
-    for c_id in range(N_CLUSTERS):
-        mask   = cluster_ids == c_id
-        c_dist = all_dists[mask]
-        cluster_stats[c_id] = {
-            "mean": float(np.mean(c_dist)),
-            "std" : float(np.std(c_dist)),
-        }
-        print(f"    Küme {c_id}: örtüşme eşiği = {cluster_stats[c_id]['mean']:.3f} + 2.5*{cluster_stats[c_id]['std']:.3f}")
-
-    # Global yedek eşik (99. persentil)
-    unknown_threshold = float(np.percentile(all_dists, 99))
-    print(f"  Global yedek eşik (99. persentil): {unknown_threshold:.4f}")
+    # Bilinmeyen hastalık eşiği (95. persentil)
+    dists = [float(np.linalg.norm(features_scaled[i] - kmeans.cluster_centers_[cluster_ids[i]]))
+             for i in range(len(features_scaled))]
+    threshold = float(np.percentile(dists, 95))
+    print(f"\n  Yeni hastalık eşiği (95. persentil): {threshold:.4f}")
 
     # 5. Kaydet
     os.makedirs("models", exist_ok=True)
@@ -189,8 +176,7 @@ def main():
         "cluster_class_dist": cluster_class_dist,
         "class_names"       : class_names,
         "n_clusters"        : N_CLUSTERS,
-        "unknown_threshold" : unknown_threshold,
-        "cluster_stats"     : cluster_stats,
+        "unknown_threshold" : threshold,
     }, MODEL_SAVE_PATH)
 
     print(f"\n[5/5] Model kaydedildi → {MODEL_SAVE_PATH}")
