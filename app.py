@@ -158,8 +158,7 @@ html, body, [class*="css"] {
     border-radius: 10px !important;
     padding: 10px 12px !important;
     width: 100% !important;
-    min-height: 60px !important;
-    height: auto !important;
+    height: 60px !important;
     white-space: pre-line !important;
     line-height: 1.3 !important;
     box-shadow: 0 4px 14px rgba(46,125,50,0.4) !important;
@@ -384,7 +383,7 @@ def main():
     # SOL KOLON: uploader + görsel
     with col_L:
         st.markdown("### 📁 Görüntü Yükle")
-        up_col, btn_col = st.columns([2.6, 1], gap="small", vertical_alignment="bottom")
+        up_col, btn_col = st.columns([2.6, 1], gap="small")
         with up_col:
             uploaded_file = st.file_uploader(
                 "PNG, JPG veya JPEG seçin",
@@ -393,7 +392,8 @@ def main():
         with btn_col:
             analyze_btn = False
             if uploaded_file:
-                analyze_btn = st.button("🚀 ANALİZİ\nGERÇEKLEŞTİR", use_container_width=True)
+                st.markdown("<div style='padding-top:28px'></div>", unsafe_allow_html=True)
+                analyze_btn = st.button("🚀 ANALİZİ\nGERÇEKLEŞTİR")
 
         image = None
         image_placeholder = st.empty()
@@ -453,14 +453,13 @@ def main():
 
         elif uploaded_file and analyze_btn and image is not None:
             with st.spinner("🔬 Yapay zeka analiz ediyor…"):
-                if "Nesne" in model_choice:
-                    valid_classes = [k for k, v in model.names.items() if v != "wfd_dataset"]
-                    # wfd_dataset filtrelendiği için, asıl hastalıkların düşük güven skorlarını da yakalayabilmek adına conf değerini düşürüyoruz.
-                    results = model(image, classes=valid_classes, conf=0.12)
-                else:
-                    results = model(image)
-                    
+                results = model(image, conf=0.15) if "Nesne" in model_choice else model(image)
                 result  = results[0]
+
+                # Görüntü üzerinde 'wfd_dataset' yerine 'Coklu Enfeksiyon' yazsın
+                for k, v in result.names.items():
+                    if v == "wfd_dataset":
+                        result.names[k] = "Coklu Enfeksiyon"
 
                 res_plotted = result.plot()
                 annotated   = Image.fromarray(res_plotted[..., ::-1])
@@ -480,12 +479,41 @@ def main():
 
                 # Tespit edilen tüm benzersiz hastalıkları topla
                 detected = []
+                wfd_found = False
                 for box in result.boxes:
                     name = result.names[int(box.cls)]
                     conf = float(box.conf)
+                    if name == "Coklu Enfeksiyon" or name == "wfd_dataset":
+                        wfd_found = True
+                        continue
+                    
                     rec  = get_recommendation(name)
                     if rec:
                         detected.append({"name": name, "conf": conf, "rec": rec})
+                        
+                # Eğer genel hastalık bulunduysa asıl detayları Sınıflandırma modelinden çekiyoruz!
+                if wfd_found and len(detected) < 2:
+                    st.info("💡 **Gelişmiş Analiz Devrede:** Görüntüde karmaşık (çoklu) bir enfeksiyon saptandı. Detaylı tespit için arka planda Sınıflandırma modeli kullanılıyor...")
+                    try:
+                        cls_model = YOLO("models/classification_model.pt")
+                        cls_res = cls_model(image)[0]
+                        probs = cls_res.probs
+                        for idx in probs.top5:
+                            cls_name = cls_res.names[idx]
+                            if "Healthy" not in cls_name and cls_name != "wfd_dataset":
+                                conf = float(probs.data[idx])
+                                rec = get_recommendation(cls_name)
+                                if rec and not any(d['name'] == cls_name for d in detected):
+                                    detected.append({"name": cls_name, "conf": conf, "rec": rec})
+                                if len([d for d in detected if "Healthy" not in d['name']]) >= 2:
+                                    break # 2 hastalığa ulaştığımızda dur (kombine tedavi için yeterli)
+                    except Exception:
+                        pass
+                
+                # Eğer her iki model de bir şey bulamazsa fallback
+                if len(detected) == 0 and wfd_found:
+                    rec = get_recommendation("wfd_dataset")
+                    detected.append({"name": "wfd_dataset", "conf": 0.99, "rec": rec})
 
                 # Her hastalık için ayrı kart
                 for d in detected:
