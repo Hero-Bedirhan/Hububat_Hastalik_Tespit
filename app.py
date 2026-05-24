@@ -279,49 +279,50 @@ def load_model(selected_type):
         return None, f"Model yükleme hatası: {exc}"
 
 
-# ── KÜMELEME MODELİ ───────────────────────────────────────────
+# ── KÜMELEME MODELİ (YOLO Backbone Tabanlı) ──────────────────
 @st.cache_resource
 def load_clustering_components():
-    """K-Means model verilerini ve ResNet18 özellik çıkarıcıyı yükler."""
-    cluster_path = "models/clustering_model.pkl"
+    """K-Means model verilerini ve YOLO classification backbone'unu yükler.
+    Ayrı bir ResNet18 gerekmez — kendi eğittiğimiz model kullanılır."""
+    cluster_path  = "models/clustering_model.pkl"
+    yolo_cls_path = "models/classification_model.pt"
+
     if not os.path.exists(cluster_path):
-        return None, None, None, (
+        return None, None, (
             "Kümeleme modeli bulunamadı. "
             "Önce terminalde `python train_clustering_model.py` çalıştırın."
         )
+    if not os.path.exists(yolo_cls_path):
+        return None, None, f"YOLO modeli bulunamadı: {yolo_cls_path}"
+
     try:
-        import torchvision.models as tv_models
-        import torchvision.transforms as tv_transforms
-
-        data = joblib.load(cluster_path)
-
-        base      = tv_models.resnet18(weights=tv_models.ResNet18_Weights.DEFAULT)
-        extractor = torch.nn.Sequential(*list(base.children())[:-1])
-        extractor.eval()
-
-        transform = tv_transforms.Compose([
-            tv_transforms.Resize((224, 224)),
-            tv_transforms.ToTensor(),
-            tv_transforms.Normalize(
-                mean=[0.485, 0.456, 0.406],
-                std =[0.229, 0.224, 0.225]
-            ),
-        ])
-        return data, extractor, transform, None
+        data     = joblib.load(cluster_path)
+        yolo     = YOLO(yolo_cls_path)
+        net      = yolo.model
+        backbone = torch.nn.Sequential(*list(net.model)[:-1])
+        backbone.eval()
+        return data, backbone, None
     except Exception as exc:
-        return None, None, None, f"Kümeleme modeli yükleme hatası: {exc}"
+        return None, None, f"Kümeleme bileşenleri yüklenemedi: {exc}"
 
 
 def extract_features_from_image(
     image: Image.Image,
-    extractor: torch.nn.Module,
-    transform
+    backbone: torch.nn.Module,
 ) -> np.ndarray:
-    """Tek bir PIL görüntüsünden 512-d özellik vektörü çıkarır."""
+    """YOLO backbone ile PIL görüntüsünden özellik vektörü çıkarır."""
+    import torchvision.transforms as T
+    transform = T.Compose([
+        T.Resize((224, 224)),
+        T.ToTensor(),
+        T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
     tensor = transform(image).unsqueeze(0)
     with torch.no_grad():
-        feat = extractor(tensor).squeeze().cpu().numpy()
-    return feat
+        out = backbone(tensor)
+        if out.dim() > 2:
+            out = out.mean(dim=[2, 3])  # global average pool
+    return out.squeeze().cpu().numpy()
 
 
 def get_recommendation(class_name):
@@ -375,7 +376,7 @@ with st.sidebar:
 # ── ANA EKRAN ────────────────────────────────────────────────
 def run_clustering_mode():
     """Kümeleme modu: yeni/etiketlenmemiş görüntüyü K-Means ile analiz eder."""
-    cluster_data, extractor, transform, err = load_clustering_components()
+    cluster_data, backbone, err = load_clustering_components()
     if err:
         st.error(f"⚠️ {err}")
         return
@@ -452,9 +453,9 @@ def run_clustering_mode():
 """, unsafe_allow_html=True)
 
         elif uploaded_file and analyze_btn and image is not None:
-            with st.spinner("🔬 K-Means ile küme atanıyor…"):
-                feat         = extract_features_from_image(image, extractor, transform)
-                feat_scaled  = cluster_data["scaler"].transform(feat.reshape(1, -1))
+            with st.spinner("🔬 YOLO backbone özellik çıkarıyor • K-Means atanıyor…"):
+                feat        = extract_features_from_image(image, backbone)
+                feat_scaled = cluster_data["scaler"].transform(feat.reshape(1, -1))
                 kmeans       = cluster_data["kmeans"]
                 centers      = kmeans.cluster_centers_
                 threshold    = cluster_data["unknown_threshold"]
