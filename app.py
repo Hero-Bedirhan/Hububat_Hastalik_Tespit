@@ -310,12 +310,12 @@ def extract_features_from_image(
     image: Image.Image,
     backbone: torch.nn.Module,
 ) -> np.ndarray:
-    """YOLO backbone ile PIL görüntüsünden özellik vektörü çıkarır."""
+    """YOLO backbone ile PIL görüntüsünden özellik vektörü çıkarır.
+    YOLO'nun kendi ön-işlemi: sadece resize + [0,1] normalize (ImageNet stats YOK)."""
     import torchvision.transforms as T
     transform = T.Compose([
         T.Resize((224, 224)),
-        T.ToTensor(),
-        T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        T.ToTensor(),   # → [0,1] — ImageNet mean/std uygulanmaz
     ])
     tensor = transform(image).unsqueeze(0)
     with torch.no_grad():
@@ -461,15 +461,23 @@ def run_clustering_mode():
                 threshold    = cluster_data["unknown_threshold"]
 
                 # Tüm kümelere olan mesafeler
-                dists = np.linalg.norm(centers - feat_scaled, axis=1)  # (k,)
+                dists        = np.linalg.norm(centers - feat_scaled, axis=1)  # (k,)
                 sorted_idx   = np.argsort(dists)
                 nearest_idx  = int(sorted_idx[0])
                 nearest_dist = float(dists[nearest_idx])
                 nearest_name = cluster_data["cluster_to_class"].get(nearest_idx, "Bilinmeyen")
 
-                # Mesafeyi benzerlik % skoruna çevir (exponential decay)
-                similarity_pct = float(np.exp(-nearest_dist / threshold) * 100)
-                is_unknown     = nearest_dist > threshold
+                # Küme bazında eşik: mean + 2.5 * std (eğitim verisiyle tutarlı)
+                c_stats  = cluster_data.get("cluster_stats", {})
+                c_stat   = c_stats.get(nearest_idx, None)
+                if c_stat:
+                    adaptive_thresh = c_stat["mean"] + 2.5 * c_stat["std"]
+                else:
+                    adaptive_thresh = cluster_data["unknown_threshold"]
+                is_unknown = nearest_dist > adaptive_thresh
+
+                # Benzerlik skoru (0-100)
+                similarity_pct = max(0.0, (1.0 - nearest_dist / (adaptive_thresh + 1e-8)) * 100)
 
             # ── SONUÇ KARTI ──────────────────────────────────────
             if is_unknown:
@@ -518,7 +526,7 @@ def run_clustering_mode():
             for rank, idx in enumerate(sorted_idx[:3]):
                 name = cluster_data["cluster_to_class"].get(int(idx), "Bilinmeyen")
                 d    = float(dists[idx])
-                sim  = float(np.exp(-d / threshold) * 100)
+                sim  = max(0.0, (1.0 - d / (adaptive_thresh + 1e-8)) * 100)
                 bar_color = "#43a047" if rank == 0 else ("#fb8c00" if rank == 1 else "#e53935")
                 st.markdown(f"""
 <div style="display:flex;align-items:center;margin-bottom:8px;gap:10px">
