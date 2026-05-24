@@ -455,7 +455,8 @@ def main():
             with st.spinner("🔬 Yapay zeka analiz ediyor…"):
                 if "Nesne" in model_choice:
                     valid_classes = [k for k, v in model.names.items() if v != "wfd_dataset"]
-                    results = model(image, classes=valid_classes)
+                    # wfd_dataset filtrelendiği için, asıl hastalıkların düşük güven skorlarını da yakalayabilmek adına conf değerini düşürüyoruz.
+                    results = model(image, classes=valid_classes, conf=0.12)
                 else:
                     results = model(image)
                     
